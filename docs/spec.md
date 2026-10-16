@@ -12,15 +12,17 @@ NFL rosters carry 53 or more players, so the teammate graph is very dense:
 
 So difficulty comes from **par and the number of optimal routes**. Par-2 pairs have a median of 15 optimal routes; par-3 pairs have a median of about 500.
 
-| Day | Par | Optimal routes | Notes |
-|---|---|---|---|
-| Mon | 2 | ≥ 20 | easy |
-| Tue | 2 | 8–19 | |
-| Wed | 3 | any | |
-| Thu | 2 | 3–7 | you need to know one of the few links |
-| Fri | 3 | ≤ 300 | about 30% of Fridays use a "deep cut" endpoint (fame rank 400–1200) |
-| Sat | 3 (falls back to 2) | any | themed: "{home team of Sunday Night Football} weekend". Both endpoints played for that franchise, at least 4 seasons apart. |
-| Sun | 3 (falls back to 2) | any | themed: "Sunday Night: {away} at {home}". One endpoint from each team. |
+| Day | Par | Optimal routes | Endpoint pool | Notes |
+|---|---|---|---|---|
+| Mon | 2 | ≥ 20 | top 200 | easy |
+| Tue | 2 | 8–19 | top 300 | |
+| Wed | 3 | any | top 400 | |
+| Thu | 2 | 3–7 | top 300 | you need to know one of the few links |
+| Fri | 3 | ≤ 300 | top 400 | about 30% of Fridays use a "deep cut" endpoint (fame rank 400–1200) |
+| Sat | 3 (falls back to 2) | any | top 400 | themed: "{home team of Sunday Night Football} weekend". Both endpoints played for that franchise, at least 4 seasons apart. |
+| Sun | 3 (falls back to 2) | any | top 400 | themed: "Sunday Night: {away} at {home}". One endpoint from each team. |
+
+Within each pool, endpoints are picked with a lean toward fame (a weighted shuffle), and the second endpoint prefers a different position and era.
 
 - Outside the season, weekends rotate franchise themes.
 - `tools/puzzle_overrides.json` pins hand-picked pairs to dates, for holidays and big games.

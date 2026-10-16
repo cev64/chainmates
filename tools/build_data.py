@@ -266,15 +266,17 @@ class Graph:
 # Difficulty calendar. NFL rosters are big (53+), so the teammate graph is dense:
 # among the top ~400 players every pair is 1-3 links apart and par 4 almost never
 # exists. Difficulty therefore comes from par *and* how many optimal routes exist.
-# kind: (par, min optimal, max optimal, deep-cut chance for one endpoint)
+# Endpoints come from the top `pool` of the endpoint pool, picked with a lean toward fame;
+# early-week puzzles use bigger names.
+# kind: (par, min optimal, max optimal, deep-cut chance for one endpoint, pool)
 DIFFICULTY = {
-    "mon": (2, 20, 10**9, 0.0),   # par 2, lots of shared teammates
-    "tue": (2, 8, 19, 0.0),
-    "wed": (3, 1, 10**9, 0.0),
-    "thu": (2, 3, 7, 0.0),        # par 2, only a handful of routes
-    "fri": (3, 1, 300, 0.3),      # par 3, few routes, sometimes a deep cut
-    "sat": (3, 1, 10**9, 0.0),    # themed; falls back to par 2
-    "sun": (3, 1, 10**9, 0.0),
+    "mon": (2, 20, 10**9, 0.0, 200),   # par 2, lots of shared teammates, stars only
+    "tue": (2, 8, 19, 0.0, 300),
+    "wed": (3, 1, 10**9, 0.0, 400),
+    "thu": (2, 3, 7, 0.0, 300),        # par 2, only a handful of routes
+    "fri": (3, 1, 300, 0.3, 400),      # par 3, few routes, sometimes a deep cut
+    "sat": (3, 1, 10**9, 0.0, 400),    # themed; falls back to par 2
+    "sun": (3, 1, 10**9, 0.0, 400),
 }
 KIND = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 POOL_SIZE = 400
@@ -291,7 +293,7 @@ def build_pool(meta, fame):
     off = [p for p in ranked if meta[p]["pos"] in OFFENSE_POS]
     dfn = [p for p in ranked if meta[p]["pos"] in DEFENSE_POS]
     n_off = round(POOL_SIZE * 0.65)
-    pool = off[:n_off] + dfn[:POOL_SIZE - n_off]
+    pool = sorted(off[:n_off] + dfn[:POOL_SIZE - n_off], key=lambda p: -fame[p])
     k = DEEP_POOL // POOL_SIZE
     deep = off[n_off:n_off * k] + dfn[POOL_SIZE - n_off:(POOL_SIZE - n_off) * k]
     return pool, deep
@@ -378,8 +380,8 @@ def generate(G, meta, fame, epoch, days, existing, today, seasons, offline, over
                 else:
                     fr = sorted(TEAMS)[(n // 7) % 32]
                     theme, side_a, side_b = f"{TEAMS[fr][1]} weekend", fr, fr
-            ctx = (G, pool, deep, col, dist, cnt, meta, franchises, used_pairs, recent, rng)
-            par, lo, hi, deep_p = DIFFICULTY[kind]
+            par, lo, hi, deep_p, size = DIFFICULTY[kind]
+            ctx = (G, pool[:size], deep, col, dist, cnt, meta, fame, franchises, used_pairs, recent, rng)
             tries = [(par, lo, hi, rng.random() < deep_p, side_a, side_b)]
             if theme:
                 tries += [(2, 1, 10**9, False, side_a, side_b)]
@@ -402,12 +404,12 @@ def generate(G, meta, fame, epoch, days, existing, today, seasons, offline, over
 
 
 def pick(ctx, want, lo, hi, use_deep, side_a, side_b):
-    G, pool, deep, col, dist, cnt, meta, franchises, used, recent, rng = ctx
+    G, pool, deep, col, dist, cnt, meta, fame, franchises, used, recent, rng = ctx
     recent = set(recent)
     ok_a = lambda p: p not in recent and (side_a is None or side_a in franchises[p])
     ok_b = lambda p: p not in recent and (side_b is None or side_b in franchises[p])
-    cands_a = [p for p in pool if ok_a(p)]
-    rng.shuffle(cands_a)
+    # Weighted shuffle (Efraimidis-Spirakis) leaning toward famous players.
+    cands_a = sorted((p for p in pool if ok_a(p)), key=lambda p: -rng.random() ** (1 / (fame[p] / 999) ** 2))
     b_pool = deep if use_deep else pool
     for a in cands_a:
         drow, crow = dist[col[a]], cnt[col[a]]
@@ -423,6 +425,7 @@ def pick(ctx, want, lo, hi, use_deep, side_a, side_b):
             if meta[p]["pos"] != meta[a]["pos"]:
                 s += 0.6
             s += min(abs(era(meta[p]) - era(meta[a])), 12) / 12
+            s += 0.8 * fame[p] / 999
             return s
         b = max(bs, key=score)
         return (a, b) if rng.random() < 0.5 else (b, a)
@@ -453,6 +456,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--rebuild", action="store_true", help="ignore existing puzzles.json")
+    ap.add_argument("--regen-future", action="store_true",
+                    help="re-pick every puzzle after today (keeps today and earlier); use after changing the picker")
     ap.add_argument("--epoch", default=None, help="date of puzzle #1 (YYYY-MM-DD)")
     ap.add_argument("--days", type=int, default=None, help="number of puzzles (default: through today + 365)")
     ap.add_argument("--last-season", type=int, default=None)
@@ -496,7 +501,10 @@ def main():
     days = args.days or ((dt.date.fromisoformat(today) - dt.date.fromisoformat(epoch)).days + 366)
     days = max(days, len(existing.get("puzzles", [])))
     overrides = load_overrides(meta)
-    puzzles = generate(G, meta, fame, epoch, days, existing.get("puzzles", []), today, seasons, args.offline, overrides)
+    old = existing.get("puzzles", [])
+    if args.regen_future:
+        old = [p for p in old if p["date"] <= today]
+    puzzles = generate(G, meta, fame, epoch, days, old, today, seasons, args.offline, overrides)
     write_json(ppath, {"v": 1, "sport": SPORT, "epoch": epoch, "tz": "America/New_York", "puzzles": puzzles})
 
     report(G, meta, fame, puzzles, order)
