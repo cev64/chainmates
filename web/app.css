@@ -11,7 +11,7 @@
   --font-display: "Zilla Slab", "Roboto Slab", Rockwell, Georgia, serif;
 
   --paper: #f6f3ec; --paper-2: #eeeadf; --card: #fbfaf6;
-  --ink: #1a1917;   --ink-2: #4a4740;   --ink-3: #767165;
+  --ink: #1a1917;   --ink-2: #4a4740;   --ink-3: #6b665a;
   --rule: #dcd6c9;  --rule-2: #bab3a3;
   --accent: #e8590c; --accent-ink: #b0440a; --accent-soft: #fbe5d8; --on-accent: #ffffff;
   --brass: #e2b33c;  --brass-ink: #855c00;
@@ -225,7 +225,7 @@ b, strong { font-weight: 700; }
 .rail-line { position: absolute; left: -1px; top: 0; bottom: 0; width: 2px; background: var(--ink); transform-origin: 50% 0; }
 .rail-knot { position: absolute; left: -11px; top: 50%; width: 22px; height: 22px; margin-top: -11px; border-radius: 50%; display: grid; place-items: center; background: var(--paper); border: 1.5px solid var(--ink); color: var(--ink); }
 .rail-knot svg { display: block; }
-.reason { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.reason { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
 .reason > span:last-child { min-width: 0; }
 .reason b { color: var(--ink); font-weight: 600; }
 /* the live link: the open connector you are trying to make */
@@ -283,6 +283,7 @@ b, strong { font-weight: 700; }
   max-height: 360px; overflow-y: auto; overscroll-behavior: contain; background: var(--card); border: 1px solid var(--rule-2); border-radius: var(--r-s);
   box-shadow: var(--lift); transform-origin: 50% 0; animation: dropIn var(--dur-m) var(--ease-out) both; scrollbar-width: thin;
 }
+.ac.up { top: auto; bottom: calc(100% + 6px); transform-origin: 50% 100%; }
 .ac-hl { position: absolute; left: 4px; right: 4px; top: 0; height: 0; border-radius: 4px; background: color-mix(in srgb, var(--accent) 11%, var(--card)); pointer-events: none; opacity: 0; will-change: transform; }
 .ac-hl.on { opacity: 1; }
 .ac-hl.glide { transition: transform var(--dur-s) var(--ease-out), height var(--dur-s) var(--ease-out), opacity var(--dur-xs) linear; }
@@ -309,8 +310,9 @@ b, strong { font-weight: 700; }
 .result-strip .rs-score.is-x { color: var(--bad); }
 .result-strip small { display: block; color: var(--ink-2); font-size: 13px; margin-top: 4px; }
 
-.controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
-.controls-btns { display: flex; gap: 4px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; padding: 12px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.controls-btns { display: flex; gap: 4px; margin-left: auto; }
+@media (max-width: 400px) { .controls-btns .btn { padding: 0 12px; } }
 .downs { display: flex; align-items: center; gap: 6px; }
 .downs-label { margin-right: 4px; color: var(--ink-2); font-size: 13px; font-weight: 600; }
 .down { position: relative; width: 13px; height: 13px; border-radius: 2px; background: var(--ink); }
@@ -505,6 +507,7 @@ html.modal-open .downs .down { animation-play-state: paused !important; }
 .footer-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 0 14px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
 .footer-links a, .footer-links .linklike { display: inline-flex; align-items: center; min-height: 34px; color: var(--ink-2); }
 .footer-links span { display: none; }
+.footer #footAttribution { display: inline-flex; align-items: center; min-height: 34px; }
 
 /* ------------------------------------------------------------------ keyframes (all short, all transform/opacity) */
 @keyframes fadeIn { from { opacity: 0; } }

@@ -112,6 +112,7 @@
   /* ------------------------------------------------------------ data */
   let index = null, playersJson = null, puzzlesJson = null, TEAMS = {};
   let today = '', todayN = 0;
+  let viewDay = '';         // the Eastern date the current view was routed for (to spot a midnight rollover)
   let game = null;          // { puzzle, mode: 'daily'|'practice', key, state, shownDowns }
   let currentView = null;
   let busy = false;         // an animation that must finish before the next move (undo retract, solve lock-up)
@@ -136,6 +137,7 @@
         index = H.buildIndex(pj);
         refreshToday();
         route();
+        scheduleRollover();
         maybeFirstVisitHelp();
       })
       .catch((err) => { console.error(err); showStatus('error', err); });
@@ -159,11 +161,13 @@
   const metaLine = (p) => [p.pos, years(p)].filter(Boolean).join(' · ');
   const seasonsRange = () => (playersJson && playersJson.seasons ? playersJson.seasons.join('–') : '');
 
+  /** Chip text colour: whichever of white / near-black has the higher WCAG contrast on the team colour (orange and cyan chips need dark ink). */
   function inkFor(hex) {
     const n = parseInt(String(hex).replace('#', ''), 16);
     if (!isFinite(n)) return '#ffffff';
-    const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
-    return lum > 0.62 ? '#0b1726' : '#ffffff';
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    return 1.05 / (L + 0.05) >= (L + 0.05) / 0.0582 ? '#ffffff' : '#0b1726';
   }
   /** ClubChip: the team code on its primary colour with a thin secondary stripe; ink picked by luminance. */
   function chip(team, season) {
@@ -222,7 +226,7 @@
       } else if (kind === 'future') {
         const p = H.puzzleByNumber(puzzlesJson, arg);
         inner = '<span class="status-big">Not available yet</span><strong>Puzzle #' + esc(arg) + ' is still locked.</strong>' +
-          '<span>' + (p ? 'It unlocks ' + esc(fmtDate(p.date)) + ' at midnight Eastern.' : 'Check back later.') + '</span><a class="btn btn-ink" href="#">Play today\'s puzzle</a>';
+          '<span>' + (p ? 'It unlocks ' + esc(fmtDate(p.date, true)) + ' at midnight Eastern.' : 'Check back later.') + '</span><a class="btn btn-ink" href="#">Play today\'s puzzle</a>';
       } else if (kind === 'notfound') {
         inner = '<span class="status-big">No such puzzle</span><strong>There is no puzzle #' + esc(arg) + '.</strong><span>Pick one from the archive instead.</span><a class="btn btn-ink" href="#archive">Open the archive</a>';
       } else if (kind === 'nopuzzle') {
@@ -238,7 +242,9 @@
 
   /* ------------------------------------------------------------ routing */
   function parseHash() {
-    const h = decodeURIComponent(location.hash.replace(/^#\/?/, '')).trim().toLowerCase();
+    let h = location.hash.replace(/^#\/?/, '');
+    try { h = decodeURIComponent(h); } catch (e) { /* malformed escape like "#%": treat as unknown and show today */ }
+    h = h.trim().toLowerCase();
     if (!h || h === 'today') return { view: 'game', n: todayN };
     if (h === 'archive') return { view: 'archive' };
     if (h === 'stats') return { view: 'stats' };
@@ -248,6 +254,7 @@
   function route() {
     if (!index) return;
     refreshToday();
+    viewDay = today;
     closeAC();
     closeAllDialogs();
     toasts.innerHTML = '';
@@ -267,7 +274,7 @@
 
   /* ------------------------------------------------------------ game state */
   function validState(st, p) {
-    return !!st && typeof st === 'object' && st.n === p.n && st.start === p.start && st.end === p.end && st.par === p.par &&
+    return !!st && typeof st === 'object' && Number.isInteger(st.downs) && st.downs >= 0 && Number.isInteger(st.inc) && Number.isInteger(st.hints) && st.n === p.n && st.start === p.start && st.end === p.end && st.par === p.par &&
       Array.isArray(st.chain) && st.chain[0] === p.start && st.chain.every((id) => !!H.player(index, id)) &&
       ['playing', 'won', 'lost'].indexOf(st.status) >= 0 && Array.isArray(st.log) && !!st.hintAt && typeof st.hintAt === 'object';
   }
@@ -287,7 +294,8 @@
   const save = () => store.set(game.key, game.state);
   function loadStats() {
     const s = store.get(KEY('stats'), null);
-    return s && s.v === 1 && s.hist && s.results ? s : H.newStats();
+    if (!s || s.v !== 1 || !s.hist || !s.results) return H.newStats();
+    return Object.assign(H.newStats(), s, { hist: Object.assign(H.newStats().hist, s.hist) });   // fill any missing counters
   }
   function recordDaily() {
     if (!game || game.mode !== 'daily' || game.state.status === 'playing') return;
@@ -369,7 +377,7 @@
     $('#slot').hidden = !playing;
     $('#guess').disabled = !playing;
     if (playing) {
-      $('#nextConn').innerHTML = railHTML(body.length) + '<span class="reason">Next: a teammate of <b>' + esc(last.name) + '</b></span>';
+      $('#nextConn').innerHTML = railHTML(body.length) + '<span class="reason"><span>Next: a teammate of <b>' + esc(last.name) + '</b></span></span>';
     } else closeAC();
 
     // hint for the current position (kept visible while you stay there)
@@ -464,8 +472,7 @@
       haptic('miss');
       const left = r.kind === 'lost' ? 0 : r.downsLeft;
       const msg = (r.kind === 'lost' ? S.lost : cap(S.miss)) + ' — ' + p.name + ' and ' + lastP.name + ' were never teammates';
-      toast(msg, 'bad', r.kind === 'lost' ? 'Game over.' : downsLeft(left));
-      announce(msg + '. ' + downsLeft(left) + '.');
+      toast(msg, 'bad', r.kind === 'lost' ? 'Game over.' : downsLeft(left));   // #toasts is a live region, so no separate announce()
       if (r.kind === 'lost') {
         renderControls();
         busy = true;
@@ -568,8 +575,7 @@
     save();
     renderGame();
     const label = H.teamLabel(index, r.hint.team, r.hint.season);
-    announce('Hint: try the ' + label + '. ' + downsLeft(game.state.downs) + '.');
-    toast('Try the ' + label, 'good', downsLeft(game.state.downs));
+    toast('Hint: try the ' + label, 'good', downsLeft(game.state.downs));
   });
 
   /* ------------------------------------------------------------ autocomplete */
@@ -607,7 +613,12 @@
   function renderAC(q) {
     const wasOpen = !acList.hidden;
     if (!acItems.length) {
-      acList.innerHTML = '<li class="ac-empty" role="option" aria-disabled="true" aria-selected="false">No player by that name played ' + esc(seasonsRange()) + '.</li>';
+      // a name that only matches players already on the board gets its own explanation instead of "no player"
+      const held = H.search(index, q, { limit: 1 })[0];
+      const why = held && held.id === game.state.start ? held.name + ' is your starting player.'
+        : held && game.state.chain.indexOf(held.id) >= 0 ? held.name + ' is already in your chain.'
+        : 'No player by that name played ' + seasonsRange() + '.';
+      acList.innerHTML = '<li class="ac-empty" role="option" aria-disabled="true" aria-selected="false">' + esc(why) + '</li>';
     } else {
       const endId = game.state.end;
       acList.innerHTML = '<li class="ac-hl" role="presentation" aria-hidden="true"></li>' + acItems.map((p, i) =>
@@ -641,13 +652,16 @@
       else if (bottom > acList.scrollTop + acList.clientHeight) acList.scrollTop = bottom - acList.clientHeight + 6;
     } else input.removeAttribute('aria-activedescendant');
   }
-  /** Keep the dropdown inside the visible viewport (above an on-screen keyboard). */
+  /** Keep the dropdown inside the visible viewport (above an on-screen keyboard); it opens upward when there is more room above the field. */
   function sizeAC() {
     if (acList.hidden) return;
     const vv = window.visualViewport;
     const bottom = vv ? vv.height + vv.offsetTop : window.innerHeight;
-    const room = Math.floor(bottom - input.getBoundingClientRect().bottom - 20);
-    acList.style.maxHeight = Math.max(150, Math.min(420, room)) + 'px';
+    const r = input.getBoundingClientRect();
+    const below = Math.floor(bottom - r.bottom - 20), above = Math.floor(r.top - $('#topbar').getBoundingClientRect().bottom - 16);
+    const up = below < 180 && above > below;
+    acList.classList.toggle('up', up);
+    acList.style.maxHeight = Math.max(up ? 120 : 150, Math.min(420, up ? above : below)) + 'px';
   }
   function keepInputInView() {
     if (!PHONE.matches || document.activeElement !== input) return;
@@ -694,8 +708,9 @@
   });
   clearBtn.addEventListener('click', () => { clearGuess(); input.focus(); });
   document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#finder')) closeAC(); });
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', sizeAC);
-  window.addEventListener('resize', sizeAC);
+  function onViewportResize() { sizeAC(); keepInputInView(); }   // the on-screen keyboard opening or closing
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportResize);
+  window.addEventListener('resize', onViewportResize);
   document.addEventListener('keydown', (e) => { // "/" focuses the search
     if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
@@ -819,12 +834,13 @@
     const s = Math.max(0, Math.floor(ms / 1000)), p2 = (n) => (n < 10 ? '0' : '') + n;
     return p2(Math.floor(s / 3600)) + ':' + p2(Math.floor((s % 3600) / 60)) + ':' + p2(s % 60);
   }
+  const newPuzzleHTML = () => '<span>A new puzzle is out</span><a class="btn btn-primary" href="#" data-play>Play now</a>';
   function tickCountdown() {
     const el = $('#countdown');
     if (!el) return;
     const left = rollAt - Date.now();
     if (left <= 0) {
-      el.closest('.countdown').innerHTML = '<span>A new puzzle is out</span><a class="btn btn-primary" href="#" data-close>Play now</a>';
+      el.closest('.countdown').innerHTML = newPuzzleHTML();
       clearInterval(countdownTimer);
       refreshToday();
       return;
@@ -872,6 +888,8 @@
 
   function openResults() {
     if (!game || game.state.status === 'playing') return;
+    refreshToday();
+    const stale = game.mode === 'daily' && game.puzzle.n < todayN;   // finished after midnight: the next puzzle is already out
     const pz = game.puzzle, st = game.state, sc = H.score(st), won = st.status === 'won', practice = game.mode === 'practice';
     const share = H.shareText(pz, st, { url: CONFIG.shareUrl, title: S.title, emoji: S.emoji });
     const myLinks = [];
@@ -908,16 +926,18 @@
           '<ol class="mini-list">' + miniChain(pz.chain, optLinks, pz.end) + '</ol>' +
           '<p class="optimal-note">' + (pz.optimal === 1 ? 'Only 1 optimal chain exists.' : esc(Number(pz.optimal).toLocaleString('en-US')) + ' optimal chains exist.') + '</p>' +
         '</section>' +
-        '<div class="countdown sheet-sec" style="--i:' + (sec++) + '"><span>Next puzzle in</span><time id="countdown">--:--:--</time></div>' +
+        '<div class="countdown sheet-sec" style="--i:' + (sec++) + '">' + (stale ? newPuzzleHTML() : '<span>Next puzzle in</span><time id="countdown">--:--:--</time>') + '</div>' +
       '</div>';
 
     $('#btnCopy').addEventListener('click', () => copyText(share));
     const sb = $('#btnShare');
     if (sb) sb.addEventListener('click', () => { navigator.share({ text: share }).catch((err) => { if (err && err.name !== 'AbortError') copyText(share); }); });
-    rollAt = nextRollover();
     clearInterval(countdownTimer);
-    tickCountdown();
-    countdownTimer = setInterval(tickCountdown, 1000);
+    if (!stale) {
+      rollAt = nextRollover();
+      tickCountdown();
+      countdownTimer = setInterval(tickCountdown, 1000);
+    }
     const from = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
     openSheet(sheet, from || $('#btnSeeResults'));
     $('#sheetScroll').scrollTop = 0;
@@ -925,6 +945,11 @@
     animateCounts($('#sheetScroll'), 420);
   }
   sheet.addEventListener('close', () => clearInterval(countdownTimer));
+  sheet.addEventListener('click', (e) => {   // "Play now": go to today's puzzle even when the URL already reads "#"
+    if (!e.target.closest('[data-play]')) return;
+    e.preventDefault();
+    if (location.hash && location.hash !== '#') location.hash = ''; else route();
+  });
 
   function copyText(text) {
     const ok = () => {
@@ -984,7 +1009,8 @@
       const daily = store.get(stateKey('daily', n), null), practice = store.get(stateKey('practice', n), null);
       const vd = validState(daily, p) ? daily : null, vp = validState(practice, p) ? practice : null;
       const isToday = n === todayN;
-      let b = badgeFor(vd), note = '';
+      // An unfinished daily from an earlier day can't be resumed (the archive opens a fresh practice replay), so it shows no badge.
+      let b = isToday || (vd && vd.status !== 'playing') ? badgeFor(vd) : null, note = '';
       if (vd && vd.status !== 'playing') note = 'Daily';
       else if (!isToday && badgeFor(vp)) { b = badgeFor(vp); note = 'Practice'; }
       if (!b) b = { cls: 'play', text: 'Play →' };
@@ -1039,12 +1065,25 @@
     if (scrollRaf) return;
     scrollRaf = requestAnimationFrame(() => { scrollRaf = 0; $('#topbar').classList.toggle('scrolled', window.scrollY > 4); });
   }, { passive: true });
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden || !index) return;
-    const was = today;
+  /** The Eastern date changed while the page was open (timer at midnight, or the tab coming back). */
+  function onNewDay() {
+    if (!index) return;
     refreshToday();
-    if (today !== was && (!location.hash || location.hash === '#')) { toast('A new puzzle is ready', 'good'); route(); }
-  });
+    if (today === viewDay) return;
+    if (document.querySelector('dialog[open]')) return;   // an open sheet carries its own "Play now"
+    if (currentView === 'archive' || currentView === 'stats') { route(); return; }   // "Today" tag and streaks move on
+    if (location.hash && location.hash !== '#' && parseHash().n !== todayN) return;   // a specific older puzzle: leave it alone
+    const st = game && game.state, midGame = game && game.mode === 'daily' && st.status === 'playing' && (st.chain.length > 1 || st.inc || st.hints);
+    if (midGame && game.puzzle.n < todayN) { toast('A new puzzle is ready', 'good', 'Finish this one, then tap the logo for No. ' + todayN + '.'); viewDay = today; return; }
+    route();
+    toast('A new puzzle is ready', 'good');
+  }
+  let rolloverTimer = 0;
+  function scheduleRollover() {
+    clearTimeout(rolloverTimer);
+    rolloverTimer = setTimeout(() => { onNewDay(); scheduleRollover(); }, Math.min(Math.max(nextRollover() - Date.now(), 0) + 1500, 2147483000));
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) onNewDay(); });
 
   // read-only test hook: lets automated checks see the current state
   window.__chainmates = { get state() { return game && JSON.parse(JSON.stringify(game.state)); }, get mode() { return game && game.mode; } };
