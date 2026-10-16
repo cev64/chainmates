@@ -9,6 +9,11 @@
 
   const DOWNS = 3;
   const DAY = 86400000;
+  // Game modes: par = best + parOffset. Hard (the default) has the wider margin, so an Eagle is only reachable there.
+  const MODES = Object.freeze({ hard: Object.freeze({ parOffset: 2 }), easy: Object.freeze({ parOffset: 1 }) });
+  const DEFAULT_MODE = 'hard';
+  const modeKey = (m) => (Object.prototype.hasOwnProperty.call(MODES, m) ? m : DEFAULT_MODE); // unknown mode = hard
+  const stateMode = (s) => (s.mode == null ? 'easy' : modeKey(s.mode));                       // saved before modes existed = easy
 
   // ---------------------------------------------------------------- stints / index
 
@@ -95,6 +100,32 @@
       id, name: idx.names[i], pos: idx.pos[i], fame: idx.fame[i],
       stints: idx.stints[i], first: idx.first[i], last: idx.last[i],
     });
+  }
+
+  /** Career as [{team, from, to}] in chronological order (by from, then team). Consecutive seasons with one team merge;
+   *  a gap splits them, and a mid-season trade gives one entry per team. [] for an unknown player. */
+  function stintRanges(idx, id) {
+    const i = idx.byId.get(id);
+    if (i === undefined) return [];
+    const byTeam = new Map();
+    for (const s of idx.stints[i]) {
+      if (!byTeam.has(s.team)) byTeam.set(s.team, []);
+      byTeam.get(s.team).push(s.season);
+    }
+    const out = [];
+    for (const [team, seasons] of byTeam) {
+      seasons.sort((a, b) => a - b);
+      let from = null, to = null;
+      for (const y of seasons) {
+        if (from === null) { from = to = y; continue; }
+        if (y === to) continue;           // duplicate season
+        if (y === to + 1) { to = y; continue; }
+        out.push({ team, from, to });
+        from = to = y;
+      }
+      if (from !== null) out.push({ team, from, to });
+    }
+    return out.sort((a, b) => a.from - b.from || (a.team < b.team ? -1 : a.team > b.team ? 1 : 0));
   }
 
   function teamName(idx, team, season) {
@@ -294,13 +325,42 @@
   const clone = (s) => Object.assign({}, s, { chain: s.chain.slice(), hintAt: Object.assign({}, s.hintAt), log: s.log.slice() });
   const lastOf = (s) => s.chain[s.chain.length - 1];
 
+  /** Par for a puzzle in a mode: best + parOffset. Puzzles without `best` (older data) use best = par. Unknown mode = hard. */
+  function parFor(puzzle, mode) {
+    const best = puzzle.best != null ? puzzle.best : puzzle.par;
+    return best + MODES[modeKey(mode)].parOffset;
+  }
+
   function newGame(puzzle, opts) {
+    const mode = modeKey(opts && opts.mode);
     return {
-      // best = fewest links possible; par = best + 1 in current data (older data had par = best).
-      n: puzzle.n, start: puzzle.start, end: puzzle.end, par: puzzle.par, best: puzzle.best != null ? puzzle.best : puzzle.par,
+      // best = fewest links possible; par = best + the mode's offset (puzzles.json `par` is the easy par, best + 1).
+      n: puzzle.n, start: puzzle.start, end: puzzle.end, mode, par: parFor(puzzle, mode), best: puzzle.best != null ? puzzle.best : puzzle.par,
       chain: [puzzle.start], downs: opts && opts.downs > 0 ? opts.downs : DOWNS,
       inc: 0, hints: 0, hintAt: {}, status: 'playing', log: [],
     };
+  }
+
+  /**
+   * Switch mode -> {state, ok, reason?}; never mutates. Same mode is a no-op (ok, even when finished). Otherwise a
+   * finished game refuses ('over'). hard -> easy is allowed any time while playing (par drops to best + 1, logged as
+   * {t:'m', mode:'easy'}). easy -> hard only before any move (empty log, chain is just the start), else 'started'; that
+   * switch is not logged, so it can be flipped freely until the first move.
+   */
+  function setMode(state, mode) {
+    const s = clone(state);
+    const to = modeKey(mode), from = stateMode(s);
+    if (to === from) return { state: s, ok: true };
+    if (s.status !== 'playing') return { state: s, ok: false, reason: 'over' };
+    const best = s.best != null ? s.best : s.par;
+    if (to === 'easy') {
+      s.mode = 'easy'; s.par = best + MODES.easy.parOffset;
+      s.log.push({ t: 'm', mode: 'easy' });
+      return { state: s, ok: true };
+    }
+    if (s.log.length > 0 || s.chain.length > 1) return { state: s, ok: false, reason: 'started' };
+    s.mode = 'hard'; s.par = best + MODES.hard.parOffset;
+    return { state: s, ok: true };
   }
 
   /** Rejected guesses (unknown/in-chain/start/end/over) cost nothing and are not logged. */
@@ -359,27 +419,29 @@
   }
 
   const UNDER = { '-1': 'Birdie', '-2': 'Eagle', '-3': 'Albatross' };
-  /** Golf scoring: over = links - par. Under par is possible (par = best + 1), but never below best. */
+  /** Golf scoring: over = links - par, never below best - par: -1 (Birdie) in easy, -2 (Eagle) only in hard. */
   function score(state) {
     const links = state.chain.length - 1;
     const won = state.status === 'won';
     const best = state.best != null ? state.best : state.par;
     const over = Math.max(best, links) - state.par;
     const label = state.status === 'lost' ? 'X' : over === 0 ? 'Par' : over > 0 ? '+' + over : UNDER[over] || String(over);
-    return { links, par: state.par, best, over, label, won };
+    return { links, par: state.par, best, over, label, won, mode: stateMode(state) };
   }
 
   function shareText(puzzle, state, opts) {
     const url = (opts && opts.url) || 'cev64.github.io/handoff/';
-    const sc = score(state), par = puzzle.par, over = sc.over;
+    // A state without par (or best) borrows them from the puzzle: par = parFor(puzzle, mode), state mode missing = easy.
+    const st = state.par != null ? state : Object.assign({}, state, { par: parFor(puzzle, stateMode(state)), best: state.best != null ? state.best : puzzle.best != null ? puzzle.best : puzzle.par });
+    const sc = score(st), over = sc.over, par = st.par;
     const o = opts || {};
     const title = o.title || 'Chainmates';
     const emoji = o.emoji || '\u{1F3C8}';
     const miss = o.miss || 'incompletion', lost = o.lost || 'Turnover on downs';
-    const lines = [title + ' #' + puzzle.n + ' ' + emoji];
+    const lines = [title + ' #' + puzzle.n + ' ' + emoji + (sc.mode === 'hard' ? ' \u00b7 ' + (o.hardLabel || 'Hard') : '')];
     if (sc.won) {
       const squares = '\u{1F7E9}'.repeat(Math.min(sc.links, par)) + '\u{1F7E8}'.repeat(Math.max(0, sc.links - par));
-      const tail = over === 0 ? ' \u26f3' : over > 0 ? ' (+' + over + ')' : ' \u00b7 ' + sc.label + ' \u{1F426}';
+      const tail = over === 0 ? ' \u26f3' : over > 0 ? ' (+' + over + ')' : ' \u00b7 ' + sc.label + (over === -1 ? ' \u{1F426}' : ' \u{1F985}');
       lines.push(squares + ' ' + sc.links + ' link' + (sc.links === 1 ? '' : 's') + ' \u00b7 Par ' + par + tail);
     } else {
       lines.push('\u{1F3F3}\ufe0f ' + lost + ' \u00b7 Par ' + par);
@@ -394,7 +456,7 @@
 
   function newStats() {
     return { v: 1, played: 0, won: 0, cur: 0, max: 0, parCur: 0, parMax: 0, last: 0, lastWon: 0,
-      hist: { '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 }, results: {} };
+      hist: { '-2': 0, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 }, results: {} };
   }
 
   /** Record a finished DAILY game (callers must not record archive/practice plays). No-op if already recorded or unfinished. */
@@ -403,10 +465,10 @@
     const st = Object.assign({}, stats, { hist: Object.assign({}, stats.hist), results: Object.assign({}, stats.results) });
     const sc = score(state);
     st.played++;
-    st.results[n] = { links: sc.links, par: sc.par, inc: state.inc, hints: state.hints, won: sc.won };
+    st.results[n] = { links: sc.links, par: sc.par, inc: state.inc, hints: state.hints, won: sc.won, mode: sc.mode };
     if (sc.won) {
       st.won++;
-      const b = Math.max(-1, Math.min(3, sc.over));
+      const b = Math.max(-2, Math.min(3, sc.over));
       st.hist[b] = (st.hist[b] || 0) + 1;
       st.cur = stats.cur > 0 && stats.lastWon === n - 1 ? stats.cur + 1 : 1;
       st.lastWon = Math.max(stats.lastWon, n);
@@ -435,9 +497,9 @@
   }
 
   return {
-    DOWNS, parseStints, buildIndex, player, teamLabel, teamFullName, sharedTeams, areTeammates, shortestPath,
+    DOWNS, MODES, DEFAULT_MODE, parseStints, buildIndex, player, stintRanges, teamLabel, teamFullName, sharedTeams, areTeammates, shortestPath,
     validateChain, normalize, search, easternDate, puzzleNumberForDate, puzzleForDate, puzzleByNumber,
-    newGame, guess, undo, hint, score, shareText, newStats, recordResult, displayStreaks,
+    parFor, newGame, setMode, guess, undo, hint, score, shareText, newStats, recordResult, displayStreaks,
     _easternDateFallback: easternDateFallback,
   };
 });

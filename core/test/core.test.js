@@ -18,8 +18,18 @@ function deepFreeze(o) {
   if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); Object.values(o).forEach(deepFreeze); }
   return o;
 }
-function play(puzzle, moves) {
-  let s = H.newGame(puzzle);
+const easy = (p, o) => H.newGame(p, { ...o, mode: 'easy' });
+const hard = (p, o) => H.newGame(p, { ...o, mode: 'hard' });
+// Plays moves from a fresh game in `mode` ('easy' by default: the original par = best + 1). 'legacy' starts from a state
+// saved before modes existed: no `mode`, par = best + 1 as stored then.
+function start(puzzle, mode) {
+  if (mode !== 'legacy') return H.newGame(puzzle, { mode });
+  const s = easy(puzzle);
+  delete s.mode;
+  return s;
+}
+function play(puzzle, moves, mode = 'easy') {
+  let s = start(puzzle, mode);
   for (const m of moves) {
     if (m === 'u') s = H.undo(s);
     else if (m === 'h') s = H.hint(idx, s).state;
@@ -222,24 +232,54 @@ test('fixture puzzles: best is the shortest distance, par = best + 1, stored cha
   assert.deepEqual(PUZZLES.puzzles.map((p) => [p.best, p.par]), [[3, 4], [3, 4], [2, 3]]);
 });
 
-test('game: newGame shape, copies best', () => {
-  assert.deepEqual(H.newGame(P1), { n: 1, start: 'T001', end: 'T003', par: 4, best: 3, chain: ['T001'], downs: 3, inc: 0, hints: 0, hintAt: {}, status: 'playing', log: [] });
+test('modes: MODES, DEFAULT_MODE, parFor', () => {
+  assert.deepEqual(H.MODES, { hard: { parOffset: 2 }, easy: { parOffset: 1 } });
+  assert.equal(H.DEFAULT_MODE, 'hard');
+  assert.equal(H.parFor(P1, 'hard'), 5);
+  assert.equal(H.parFor(P1, 'easy'), 4);
+  assert.equal(H.parFor(P3, 'hard'), 4);
+  assert.equal(H.parFor(P3, 'easy'), 3);
+  // puzzles.json keeps par = easy par; parFor reads best
+  for (const p of PUZZLES.puzzles) assert.equal(H.parFor(p, 'easy'), p.par);
+  // an unknown or missing mode means hard
+  assert.equal(H.parFor(P1, 'nightmare'), 5);
+  assert.equal(H.parFor(P1), 5);
+  assert.equal(H.parFor(P1, 'toString'), 5);
+  // no `best` (older data): best = par
+  assert.equal(H.parFor(LEGACY1, 'easy'), 4);
+  assert.equal(H.parFor(LEGACY1, 'hard'), 5);
+  // best wins over par when both exist
+  assert.equal(H.parFor({ best: 2, par: 9 }, 'hard'), 4);
+});
+
+test('game: newGame shape, copies best, hard by default', () => {
+  assert.deepEqual(H.newGame(P1), { n: 1, start: 'T001', end: 'T003', mode: 'hard', par: 5, best: 3, chain: ['T001'], downs: 3, inc: 0, hints: 0, hintAt: {}, status: 'playing', log: [] });
+  assert.deepEqual(H.newGame(P1, { mode: 'hard' }), H.newGame(P1));
+  assert.deepEqual(H.newGame(P1, { mode: 'easy' }), { n: 1, start: 'T001', end: 'T003', mode: 'easy', par: 4, best: 3, chain: ['T001'], downs: 3, inc: 0, hints: 0, hintAt: {}, status: 'playing', log: [] });
   assert.equal(H.newGame(P1, { downs: 5 }).downs, 5);
   assert.equal(H.newGame(P1, { downs: 0 }).downs, 3);
-  assert.deepEqual([H.newGame(P3).par, H.newGame(P3).best], [3, 2]);
+  assert.equal(H.newGame(P1, { downs: 5, mode: 'easy' }).downs, 5);
+  assert.deepEqual([H.newGame(P3).par, H.newGame(P3).best], [4, 2]);
+  assert.deepEqual([easy(P3).par, easy(P3).best], [3, 2]);
+  // unknown mode -> hard; the state is never left without a mode
+  assert.deepEqual([H.newGame(P1, { mode: 'zzz' }).mode, H.newGame(P1, { mode: 'zzz' }).par], ['hard', 5]);
+  assert.equal(H.newGame(P1, {}).mode, 'hard');
+  assert.equal(H.newGame(P1, { mode: undefined }).mode, 'hard');
 });
 
 test('game: newGame on older data without best falls back to best = par', () => {
-  const g = H.newGame(LEGACY1);
-  assert.equal(g.par, 3);
+  const g = easy(LEGACY1);
   assert.equal(g.best, 3);
-  assert.deepEqual(H.newGame(LEGACY3).best, 2);
+  assert.equal(g.par, 4); // best + the easy offset; the stored par (3) was the best
+  assert.equal(H.newGame(LEGACY1).par, 5);
+  assert.deepEqual(easy(LEGACY3).best, 2);
   // a puzzle that has best is never overridden by par
-  assert.equal(H.newGame({ ...P1, best: 2, par: 3 }).best, 2);
+  assert.equal(easy({ ...P1, best: 2, par: 3 }).best, 2);
+  assert.equal(H.newGame({ ...P1, best: 2, par: 3 }).par, 4);
 });
 
 test('game: birdie (optimal chain) after one incompletion', () => {
-  let r = H.guess(idx, H.newGame(P1), 'T012');
+  let r = H.guess(idx, easy(P1), 'T012');
   assert.equal(r.result.kind, 'incompletion');
   r = H.guess(idx, r.state, 'T004');
   assert.equal(r.result.kind, 'link');
@@ -250,20 +290,20 @@ test('game: birdie (optimal chain) after one incompletion', () => {
   assert.deepEqual(r.result.final, [{ team: 'LV', season: 2021 }, { team: 'LV', season: 2020 }]);
   assert.equal(r.state.status, 'won');
   assert.deepEqual(r.state.chain, ['T001', 'T004', 'T007', 'T003']);
-  assert.deepEqual(H.score(r.state), { links: 3, par: 4, best: 3, over: -1, label: 'Birdie', won: true });
+  assert.deepEqual(H.score(r.state), { links: 3, par: 4, best: 3, over: -1, label: 'Birdie', won: true, mode: 'easy' });
   assert.deepEqual(r.state.log, [{ t: 'g', id: 'T012', ok: false }, { t: 'g', id: 'T004', ok: true }, { t: 'g', id: 'T007', ok: true }]);
   assert.equal(JSON.stringify(JSON.parse(JSON.stringify(r.state))), JSON.stringify(r.state));
   // the other optimal route (via the tight end) is a birdie too
   assert.equal(H.score(play(P1, ['T006', 'T007'])).label, 'Birdie');
   // and so is the two-link puzzle
-  assert.deepEqual(H.score(play(P3, ['T007'])), { links: 2, par: 3, best: 2, over: -1, label: 'Birdie', won: true });
+  assert.deepEqual(H.score(play(P3, ['T007'])), { links: 2, par: 3, best: 2, over: -1, label: 'Birdie', won: true, mode: 'easy' });
 });
 
 test('game: par win (one link past best)', () => {
   const s = play(P1, ['T004', 'T006', 'T007']);
   assert.equal(s.status, 'won');
   assert.deepEqual(s.chain, ['T001', 'T004', 'T006', 'T007', 'T003']);
-  assert.deepEqual(H.score(s), { links: 4, par: 4, best: 3, over: 0, label: 'Par', won: true });
+  assert.deepEqual(H.score(s), { links: 4, par: 4, best: 3, over: 0, label: 'Par', won: true, mode: 'easy' });
   // undo then re-route to the optimal chain: birdie
   const u = play(P1, ['T004', 'T006', 'u', 'u', 'T006', 'T007']);
   assert.deepEqual(u.chain, ['T001', 'T006', 'T007', 'T003']);
@@ -271,9 +311,9 @@ test('game: par win (one link past best)', () => {
   // a detour of two extra links is +1
   const plus1 = play(P1, ['T015', 'T006', 'T004', 'T007']);
   assert.deepEqual(plus1.chain, ['T001', 'T015', 'T006', 'T004', 'T007', 'T003']);
-  assert.deepEqual(H.score(plus1), { links: 5, par: 4, best: 3, over: 1, label: '+1', won: true });
+  assert.deepEqual(H.score(plus1), { links: 5, par: 4, best: 3, over: 1, label: '+1', won: true, mode: 'easy' });
   // P3 par win: three links
-  assert.deepEqual(H.score(play(P3, ['T006', 'T007'])), { links: 3, par: 3, best: 2, over: 0, label: 'Par', won: true });
+  assert.deepEqual(H.score(play(P3, ['T006', 'T007'])), { links: 3, par: 3, best: 2, over: 0, label: 'Par', won: true, mode: 'easy' });
 });
 
 test('game: scoring does not depend on incompletions or hints', () => {
@@ -284,7 +324,7 @@ test('game: scoring does not depend on incompletions or hints', () => {
 });
 
 test('game: incompletion, then loss after 3 incompletions', () => {
-  let r = H.guess(idx, H.newGame(P1), 'T012');
+  let r = H.guess(idx, easy(P1), 'T012');
   assert.deepEqual(r.result, { kind: 'incompletion', downsLeft: 2 });
   assert.equal(r.state.inc, 1);
   assert.deepEqual(r.state.chain, ['T001']);
@@ -327,7 +367,7 @@ test('game: no moves after game over', () => {
 });
 
 test('game: undo is a free no-op at the start', () => {
-  const s = H.newGame(P1);
+  const s = easy(P1);
   assert.deepEqual(H.undo(s), s);
   const g = play(P1, ['T004', 'u']);
   assert.deepEqual(g.chain, ['T001']);
@@ -336,7 +376,7 @@ test('game: undo is a free no-op at the start', () => {
 });
 
 test('hint: reveals team, season and the position of the next player on the shortest path', () => {
-  let r = H.hint(idx, H.newGame(P1));
+  let r = H.hint(idx, easy(P1));
   // two optimal first steps exist: T004 (WR, fame 800) and T006 (TE, fame 700). The famous one wins.
   assert.equal(H.player(idx, 'T004').pos, 'WR');
   assert.equal(H.player(idx, 'T006').pos, 'TE');
@@ -363,10 +403,10 @@ test('hint: pos follows the current position (every step of the shortest path)',
   assert.deepEqual(H.shortestPath(idx, 'T015', 'T003').path, ['T015', 'T006', 'T007', 'T003']);
   assert.deepEqual(H.hint(idx, at15).hint, { team: 'DEN', season: 2013, pos: 'TE' });
   // P2 through the trade: T005 (K) then T002 (QB)
-  assert.deepEqual(H.hint(idx, H.newGame(P2)).hint, { team: 'IND', season: 2010, pos: 'K' });
+  assert.deepEqual(H.hint(idx, easy(P2)).hint, { team: 'IND', season: 2010, pos: 'K' });
   assert.deepEqual(H.hint(idx, play(P2, ['T005'])).hint, { team: 'NYJ', season: 2010, pos: 'QB' });
   // P3
-  assert.deepEqual(H.hint(idx, H.newGame(P3)).hint, { team: 'OAK', season: 2017, pos: 'RB' });
+  assert.deepEqual(H.hint(idx, easy(P3)).hint, { team: 'OAK', season: 2017, pos: 'RB' });
   // for every position on the stored chains the hint is the next stored player's position (single optimal route puzzles)
   for (const p of [P2, P3]) {
     for (let i = 0; i < p.chain.length - 2; i++) {
@@ -377,7 +417,7 @@ test('hint: pos follows the current position (every step of the shortest path)',
 });
 
 test('hint: costs a down, repeat is free and returns the same pos, follows the current position', () => {
-  let r = H.hint(idx, H.newGame(P1));
+  let r = H.hint(idx, easy(P1));
   const again = H.hint(idx, r.state);
   assert.deepEqual(again.hint, { team: 'DEN', season: 2015, pos: 'WR' });
   assert.equal(again.state.downs, 2);
@@ -423,14 +463,14 @@ test('hint: refused on the last down but a cached hint stays free', () => {
 
 test('hint: works the same on older data without best, and tolerates a cached hint saved without pos', () => {
   assert.deepEqual(H.hint(idx, H.newGame(LEGACY3)).hint, { team: 'OAK', season: 2017, pos: 'RB' });
-  const old = { ...H.newGame(P1), hintAt: { T001: { team: 'DEN', season: 2015 } } }; // saved by an earlier version
+  const old = { ...easy(P1), hintAt: { T001: { team: 'DEN', season: 2015 } } }; // saved by an earlier version
   const r = H.hint(idx, old);
   assert.deepEqual(r.hint, { team: 'DEN', season: 2015 });
   assert.equal(r.state.downs, 3);
 });
 
 test('game: functions never mutate their inputs', () => {
-  const s0 = deepFreeze(H.newGame(P1));
+  const s0 = deepFreeze(easy(P1));
   const s1 = deepFreeze(H.guess(idx, s0, 'T004').state);
   const s2 = deepFreeze(H.hint(idx, s1).state);
   deepFreeze(H.guess(idx, s2, 'T012').state);
@@ -451,9 +491,9 @@ test('score labels: golf names under par, +n over, X when lost', () => {
   const mk = (links, status, par, best) => ({ chain: new Array(links + 1).fill('x'), par, best, status });
   const sc = (links, par, best, status = 'won') => H.score(mk(links, status, par, best));
   // par = best + 1, as in real data
-  assert.deepEqual(sc(3, 4, 3), { links: 3, par: 4, best: 3, over: -1, label: 'Birdie', won: true });
-  assert.deepEqual(sc(4, 4, 3), { links: 4, par: 4, best: 3, over: 0, label: 'Par', won: true });
-  assert.deepEqual(sc(5, 4, 3), { links: 5, par: 4, best: 3, over: 1, label: '+1', won: true });
+  assert.deepEqual(sc(3, 4, 3), { links: 3, par: 4, best: 3, over: -1, label: 'Birdie', won: true, mode: 'easy' });
+  assert.deepEqual(sc(4, 4, 3), { links: 4, par: 4, best: 3, over: 0, label: 'Par', won: true, mode: 'easy' });
+  assert.deepEqual(sc(5, 4, 3), { links: 5, par: 4, best: 3, over: 1, label: '+1', won: true, mode: 'easy' });
   assert.equal(sc(6, 4, 3).label, '+2');
   assert.equal(sc(7, 4, 3).label, '+3');
   assert.equal(sc(12, 4, 3).label, '+8');
@@ -474,16 +514,16 @@ test('score labels: golf names under par, +n over, X when lost', () => {
 
 test('score labels: states without best (older data) use best = par', () => {
   const mk = (links, status, par = 3) => ({ chain: new Array(links + 1).fill('x'), par, status });
-  assert.deepEqual(H.score(mk(3, 'won')), { links: 3, par: 3, best: 3, over: 0, label: 'Par', won: true });
+  assert.deepEqual(H.score(mk(3, 'won')), { links: 3, par: 3, best: 3, over: 0, label: 'Par', won: true, mode: 'easy' });
   assert.equal(H.score(mk(4, 'won')).label, '+1');
   assert.equal(H.score(mk(6, 'won')).label, '+3');
   assert.equal(H.score(mk(2, 'won')).label, 'Par'); // shorter than par: still no birdie
   assert.equal(H.score(mk(2, 'won')).over, 0);
   assert.equal(H.score(mk(2, 'lost')).label, 'X');
   assert.equal(H.score(mk(2, 'lost')).won, false);
-  // a full legacy game
-  assert.deepEqual(H.score(play(LEGACY3, ['T007'])), { links: 2, par: 2, best: 2, over: 0, label: 'Par', won: true });
-  assert.deepEqual(H.score(play(LEGACY1, ['T004', 'T006', 'T007'])), { links: 4, par: 3, best: 3, over: 1, label: '+1', won: true });
+  // a full game saved before modes existed: no mode (reads as easy), par = best + 1
+  assert.deepEqual(H.score(play(P3, ['T007'], 'legacy')), { links: 2, par: 3, best: 2, over: -1, label: 'Birdie', won: true, mode: 'easy' });
+  assert.deepEqual(H.score(play(P1, ['T004', 'T006', 'T007'], 'legacy')), { links: 4, par: 4, best: 3, over: 0, label: 'Par', won: true, mode: 'easy' });
 });
 
 test('shareText: birdie with 1 incompletion', () => {
@@ -503,20 +543,20 @@ test('shareText: +1 win with a hint, +3 win', () => {
   assert.equal(s.hints, 1);
   assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🟩🟩🟩🟩🟨 5 links · Par 4 (+1)\n💡 1 hint\ncev64.github.io/handoff/#1');
   // 7 links: four green squares (up to par), three yellow beyond it
-  const far = { ...H.newGame(P1), chain: ['T001', 'a', 'b', 'c', 'd', 'e', 'f', 'T003'], status: 'won', inc: 2 };
+  const far = { ...easy(P1), chain: ['T001', 'a', 'b', 'c', 'd', 'e', 'f', 'T003'], status: 'won', inc: 2 };
   assert.equal(H.shareText(P1, far), 'Chainmates #1 🏈\n🟩🟩🟩🟩🟨🟨🟨 7 links · Par 4 (+3)\n🟥 2 incompletions\ncev64.github.io/handoff/#1');
 });
 
-test('shareText: eagle, and "link" is singular for one link', () => {
-  const eagle = { n: 5, best: 3, par: 5 };
-  const es = { ...H.newGame(eagle), chain: ['a', 'b', 'c', 'd'], status: 'won' };
-  assert.equal(H.shareText(eagle, es), 'Chainmates #5 🏈\n🟩🟩🟩 3 links · Par 5 · Eagle 🐦\ncev64.github.io/handoff/#5');
+test('shareText: "link" is singular for one link, an Eagle-sized gap in an untagged (easy) state', () => {
+  const eagle = { n: 5, best: 3, par: 4 };
+  const es = { ...easy(eagle), par: 5, chain: ['a', 'b', 'c', 'd'], status: 'won' };
+  assert.equal(H.shareText(eagle, es), 'Chainmates #5 🏈\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\ncev64.github.io/handoff/#5');
   const one = { n: 6, best: 1, par: 2 };
-  const os = { ...H.newGame(one), chain: ['a', 'b'], status: 'won' };
+  const os = { ...easy(one), chain: ['a', 'b'], status: 'won' };
   assert.equal(H.shareText(one, os), 'Chainmates #6 🏈\n🟩 1 link · Par 2 · Birdie 🐦\ncev64.github.io/handoff/#6');
   assert.doesNotMatch(H.shareText(one, os), /1 links/);
   const onePar = { n: 7, best: 0, par: 1 };
-  assert.match(H.shareText(onePar, { ...H.newGame(onePar), chain: ['a', 'b'], status: 'won' }), /🟩 1 link · Par 1 ⛳/u);
+  assert.match(H.shareText(onePar, { ...easy(onePar), par: 1, chain: ['a', 'b'], status: 'won' }), /🟩 1 link · Par 1 ⛳/u);
 });
 
 test('shareText: loss, plural lines, custom url/title/emoji', () => {
@@ -556,17 +596,24 @@ test('shareText: custom miss / lost words replace the football defaults', () => 
   assert.match(H.shareText(P1, lost, { miss: '', lost: '' }), /Turnover on downs · Par 4\n🟥 3 incompletions/u);
 });
 
-test('shareText: older data without best reads as before', () => {
-  const par = play(LEGACY3, ['T007']);
-  assert.equal(H.shareText({ ...LEGACY3, n: 3 }, par), 'Chainmates #3 🏈\n🟩🟩 2 links · Par 2 ⛳\ncev64.github.io/handoff/#3');
-  const over = play(LEGACY1, ['T004', 'T006', 'T007']);
-  assert.equal(H.shareText(LEGACY1, over), 'Chainmates #1 🏈\n🟩🟩🟩🟨 4 links · Par 3 (+1)\ncev64.github.io/handoff/#1');
-  assert.doesNotMatch(H.shareText(LEGACY1, over), /Birdie|Eagle/);
+test('shareText: states saved before modes existed read as before (no tag, own par)', () => {
+  const birdie = play(P3, ['T007'], 'legacy');
+  assert.equal(birdie.mode, undefined);
+  assert.equal(H.shareText({ ...P3, n: 3 }, birdie), 'Chainmates #3 🏈\n🟩🟩 2 links · Par 3 · Birdie 🐦\ncev64.github.io/handoff/#3');
+  const over = play(P1, ['T004', 'T006', 'T007', 'T003'].slice(0, 3), 'legacy');
+  assert.equal(H.shareText(P1, over), 'Chainmates #1 🏈\n🟩🟩🟩🟩 4 links · Par 4 ⛳\ncev64.github.io/handoff/#1');
+  // a state with no par at all falls back to parFor(puzzle, mode); no mode on the state reads as easy
+  const bare = { chain: ['a', 'b', 'c', 'd'], status: 'won', inc: 0, hints: 0 };
+  assert.equal(H.shareText(P1, bare), 'Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, { ...bare, mode: 'hard' }), 'Chainmates #1 🏈 · Hard\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, { ...bare, mode: 'easy' }), H.shareText(P1, bare));
+  // the state's par wins over the puzzle's (puzzles.json par is the easy par)
+  assert.match(H.shareText(P1, { ...bare, best: 3, par: 5, mode: 'hard' }), /Par 5 · Eagle/);
 });
 
-test('stats: newStats has the -1 bucket', () => {
-  assert.deepEqual(H.newStats(), { v: 1, played: 0, won: 0, cur: 0, max: 0, parCur: 0, parMax: 0, last: 0, lastWon: 0, hist: { '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 }, results: {} });
-  assert.deepEqual(Object.keys(H.newStats().hist).sort(), ['-1', '0', '1', '2', '3', 'X']);
+test('stats: newStats has the -2 and -1 buckets', () => {
+  assert.deepEqual(H.newStats(), { v: 1, played: 0, won: 0, cur: 0, max: 0, parCur: 0, parMax: 0, last: 0, lastWon: 0, hist: { '-2': 0, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 }, results: {} });
+  assert.deepEqual(Object.keys(H.newStats().hist).sort(), ['-1', '-2', '0', '1', '2', '3', 'X']);
 });
 
 test('stats: consecutive win streak, gap resets, duplicate no-op, par-or-better streak', () => {
@@ -580,9 +627,10 @@ test('stats: consecutive win streak, gap resets, duplicate no-op, par-or-better 
   st = H.recordResult(frozen, 10, birdie); // does not mutate
   assert.equal(frozen.played, 0);
   assert.equal(frozen.hist['-1'], 0);
+  assert.equal(frozen.hist['-2'], 0);
   assert.deepEqual([st.played, st.won, st.cur, st.parCur, st.last, st.lastWon], [1, 1, 1, 1, 10, 10]);
-  assert.deepEqual(st.results[10], { links: 3, par: 4, inc: 0, hints: 0, won: true });
-  assert.deepEqual(st.hist, { '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(st.results[10], { links: 3, par: 4, inc: 0, hints: 0, won: true, mode: 'easy' });
+  assert.deepEqual(st.hist, { '-2': 0, '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
 
   st = H.recordResult(st, 11, par);
   assert.deepEqual([st.cur, st.max, st.parCur, st.parMax], [2, 2, 2, 2]);
@@ -592,7 +640,7 @@ test('stats: consecutive win streak, gap resets, duplicate no-op, par-or-better 
 
   st = H.recordResult(st, 12, over); // win over par: cur continues, par streak resets
   assert.deepEqual([st.cur, st.max, st.parCur, st.parMax], [3, 3, 0, 2]);
-  assert.deepEqual(st.hist, { '-1': 1, 0: 1, 1: 1, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(st.hist, { '-2': 0, '-1': 1, 0: 1, 1: 1, 2: 0, 3: 0, X: 0 });
 
   st = H.recordResult(st, 14, birdie); // gap (13 missed): win streak restarts, par streak restarts
   assert.deepEqual([st.cur, st.max, st.parCur, st.parMax], [1, 3, 1, 2]);
@@ -600,32 +648,35 @@ test('stats: consecutive win streak, gap resets, duplicate no-op, par-or-better 
   st = H.recordResult(st, 15, lost);
   assert.deepEqual([st.cur, st.max, st.parCur, st.played, st.won, st.last, st.lastWon], [0, 3, 0, 5, 4, 15, 14]);
   assert.equal(st.hist.X, 1);
-  assert.deepEqual(st.results[15], { links: 0, par: 4, inc: 3, hints: 0, won: false });
+  assert.deepEqual(st.results[15], { links: 0, par: 4, inc: 3, hints: 0, won: false, mode: 'easy' });
 
   st = H.recordResult(st, 16, par); // after a loss the streak starts over at 1
   assert.deepEqual([st.cur, st.parCur], [1, 1]);
-  assert.deepEqual(st.hist, { '-1': 2, 0: 2, 1: 1, 2: 0, 3: 0, X: 1 });
+  assert.deepEqual(st.hist, { '-2': 0, '-1': 2, 0: 2, 1: 1, 2: 0, 3: 0, X: 1 });
 
   // unfinished games are ignored
-  assert.equal(H.recordResult(H.newStats(), 1, H.newGame(P1)).played, 0);
+  assert.equal(H.recordResult(H.newStats(), 1, easy(P1)).played, 0);
 });
 
-test('stats: hist buckets -1, 0, +1, +2, +3 and beyond', () => {
+test('stats: hist buckets -2, -1, 0, +1, +2, +3 and beyond', () => {
   const rec = (links, par = 4, best = 3) => H.recordResult(H.newStats(), 1, { chain: new Array(links + 1).fill('x'), par, best, status: 'won', inc: 0, hints: 0 }).hist;
-  assert.deepEqual(rec(3), { '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
-  assert.deepEqual(rec(4), { '-1': 0, 0: 1, 1: 0, 2: 0, 3: 0, X: 0 });
-  assert.deepEqual(rec(5), { '-1': 0, 0: 0, 1: 1, 2: 0, 3: 0, X: 0 });
-  assert.deepEqual(rec(6), { '-1': 0, 0: 0, 1: 0, 2: 1, 3: 0, X: 0 });
-  assert.deepEqual(rec(7), { '-1': 0, 0: 0, 1: 0, 2: 0, 3: 1, X: 0 });
-  assert.deepEqual(rec(12), { '-1': 0, 0: 0, 1: 0, 2: 0, 3: 1, X: 0 }); // +3 or more bucket together
-  // eagle and beyond collapse into the -1 bucket
-  assert.deepEqual(rec(3, 5), { '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
-  assert.deepEqual(rec(3, 7), { '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(rec(3), { '-2': 0, '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(rec(4), { '-2': 0, '-1': 0, 0: 1, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(rec(5), { '-2': 0, '-1': 0, 0: 0, 1: 1, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(rec(6), { '-2': 0, '-1': 0, 0: 0, 1: 0, 2: 1, 3: 0, X: 0 });
+  assert.deepEqual(rec(7), { '-2': 0, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 1, X: 0 });
+  assert.deepEqual(rec(12), { '-2': 0, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 1, X: 0 }); // +3 or more bucket together
+  // eagle (hard mode) is its own bucket; albatross and beyond collapse into it
+  assert.deepEqual(rec(3, 5), { '-2': 1, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(rec(3, 6), { '-2': 1, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(rec(3, 7), { '-2': 1, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(rec(4, 5), { '-2': 0, '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 }); // best + 1 in hard is a birdie
+  assert.deepEqual(rec(5, 5), { '-2': 0, '-1': 0, 0: 1, 1: 0, 2: 0, 3: 0, X: 0 });
   // shorter than best after a data refresh still lands in -1 (over = best - par)
-  assert.deepEqual(rec(2), { '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(rec(2), { '-2': 0, '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
   // a loss goes to X only
   const l = H.recordResult(H.newStats(), 1, { chain: ['x'], par: 4, best: 3, status: 'lost', inc: 3, hints: 0 }).hist;
-  assert.deepEqual(l, { '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 1 });
+  assert.deepEqual(l, { '-2': 0, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 1 });
 });
 
 test('stats: par streak counts par or better, resets on +1 or a loss', () => {
@@ -663,7 +714,7 @@ test('stats: older saved stats without the -1 bucket keep working', () => {
   // a state with no best (older data) records like before
   const legacy = { chain: new Array(4).fill('x'), par: 3, status: 'won', inc: 0, hints: 0 };
   assert.equal(H.recordResult(H.newStats(), 1, legacy).hist[0], 1);
-  assert.deepEqual(H.recordResult(H.newStats(), 1, legacy).results[1], { links: 3, par: 3, inc: 0, hints: 0, won: true });
+  assert.deepEqual(H.recordResult(H.newStats(), 1, legacy).results[1], { links: 3, par: 3, inc: 0, hints: 0, won: true, mode: 'easy' });
 });
 
 test('stats: displayStreaks goes stale after a missed day', () => {
@@ -679,10 +730,277 @@ test('stats: displayStreaks goes stale after a missed day', () => {
   assert.deepEqual(H.displayStreaks(st, 14), { cur: 0, max: 3, parCur: 0, parMax: 2 });
 });
 
+test('modes: hard par is best + 2, so the optimal chain is an Eagle and best + 1 a Birdie', () => {
+  const eagle = play(P1, ['T004', 'T007'], 'hard');
+  assert.deepEqual(H.score(eagle), { links: 3, par: 5, best: 3, over: -2, label: 'Eagle', won: true, mode: 'hard' });
+  const birdie = play(P1, ['T004', 'T006', 'T007'], 'hard');
+  assert.deepEqual(H.score(birdie), { links: 4, par: 5, best: 3, over: -1, label: 'Birdie', won: true, mode: 'hard' });
+  const par = play(P1, ['T015', 'T006', 'T004', 'T007'], 'hard');
+  assert.deepEqual(H.score(par), { links: 5, par: 5, best: 3, over: 0, label: 'Par', won: true, mode: 'hard' });
+  const plus1 = { ...hard(P1), chain: ['T001', 'a', 'b', 'c', 'd', 'e', 'T003'], status: 'won' };
+  assert.deepEqual([H.score(plus1).over, H.score(plus1).label], [1, '+1']);
+  // two-link puzzle
+  assert.deepEqual([H.score(play(P3, ['T007'], 'hard')).label, H.score(play(P3, ['T007'], 'hard')).over], ['Eagle', -2]);
+  // the trade puzzle
+  assert.equal(H.score(play(P2, ['T005', 'T002'], 'hard')).label, 'Eagle');
+  assert.equal(H.score(play(P2, ['T005', 'T002'], 'easy')).label, 'Birdie');
+  // a lost hard game is still X
+  assert.equal(H.score(play(P1, ['T012', 'T017', 'T010'], 'hard')).label, 'X');
+});
+
+test('modes: an Eagle is impossible in easy mode, whatever the chain length', () => {
+  for (const p of PUZZLES.puzzles) {
+    for (let links = 0; links <= p.best + 6; links++) {
+      const s = { ...easy(p), chain: new Array(links + 1).fill('x'), status: 'won' };
+      assert.ok(H.score(s).over >= -1, `#${p.n} ${links} links`);
+      assert.notEqual(H.score(s).label, 'Eagle');
+    }
+    // while hard can get there
+    assert.equal(H.score({ ...hard(p), chain: new Array(p.best + 1).fill('x'), status: 'won' }).label, 'Eagle');
+  }
+  // the optimal route in easy, by playing it
+  assert.equal(H.score(play(P1, ['T004', 'T007'], 'easy')).label, 'Birdie');
+  assert.equal(H.score(play(P3, ['T007'], 'easy')).over, -1);
+  // switching hard -> easy mid-game can never leave an Eagle behind either
+  let s = hard(P1);
+  s = H.setMode(s, 'easy').state;
+  s = H.guess(idx, s, 'T004').state;
+  s = H.guess(idx, s, 'T007').state;
+  assert.deepEqual([s.status, H.score(s).label, H.score(s).mode], ['won', 'Birdie', 'easy']);
+});
+
+test('setMode: hard -> easy any time while playing, logged, par recomputed', () => {
+  const fresh = deepFreeze(hard(P1));
+  const r = H.setMode(fresh, 'easy');
+  assert.equal(r.ok, true);
+  assert.equal(r.reason, undefined);
+  assert.deepEqual(r.state, { ...easy(P1), log: [{ t: 'm', mode: 'easy' }] });
+  assert.deepEqual([r.state.mode, r.state.par, r.state.best], ['easy', 4, 3]);
+  assert.equal(fresh.mode, 'hard'); // input untouched
+  assert.equal(fresh.par, 5);
+  assert.notEqual(r.state, fresh);
+  // mid-game: chain, downs, hints, incompletions and the earlier log all survive
+  let s = play(P1, ['T012', 'h', 'T004'], 'hard');
+  assert.deepEqual([s.chain, s.downs, s.inc, s.hints], [['T001', 'T004'], 1, 1, 1]);
+  const m = H.setMode(deepFreeze(s), 'easy');
+  assert.equal(m.ok, true);
+  assert.deepEqual([m.state.mode, m.state.par, m.state.best], ['easy', 4, 3]);
+  assert.deepEqual([m.state.chain, m.state.downs, m.state.inc, m.state.hints, m.state.status], [s.chain, 1, 1, 1, 'playing']);
+  assert.deepEqual(m.state.hintAt, s.hintAt);
+  assert.deepEqual(m.state.log, [...s.log, { t: 'm', mode: 'easy' }]);
+  // and the game plays on under the new par
+  const done = H.guess(idx, m.state, 'T007').state;
+  assert.deepEqual(H.score(done), { links: 3, par: 4, best: 3, over: -1, label: 'Birdie', won: true, mode: 'easy' });
+  // after an undo, too
+  assert.equal(H.setMode(play(P1, ['T004', 'u'], 'hard'), 'easy').ok, true);
+  // survives a JSON round trip
+  assert.deepEqual(JSON.parse(JSON.stringify(m.state)), m.state);
+});
+
+test('setMode: easy -> hard only before any move', () => {
+  const fresh = deepFreeze(easy(P1));
+  const r = H.setMode(fresh, 'hard');
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.state, hard(P1)); // identical to a fresh hard game, log still empty
+  assert.deepEqual([r.state.mode, r.state.par, r.state.log], ['hard', 5, []]);
+  assert.equal(fresh.mode, 'easy');
+  // the easy -> hard switch itself is not logged, so a pristine easy game stays pristine
+  assert.deepEqual(H.setMode(H.setMode(r.state, 'hard').state, 'hard').state, r.state);
+  // refused with 'started' after a guess (right or wrong), a hint, or a guess that was undone
+  for (const moves of [['T004'], ['T012'], ['h'], ['T004', 'u'], ['T006', 'T015', 'u', 'u']]) {
+    const s = play(P1, moves, 'easy');
+    const x = H.setMode(deepFreeze(s), 'hard');
+    assert.deepEqual([x.ok, x.reason], [false, 'started'], moves.join());
+    assert.deepEqual(x.state, s, moves.join()); // returned unchanged (a copy)
+    assert.equal(x.state.mode, 'easy');
+    assert.equal(x.state.par, 4);
+  }
+  // hard -> easy -> hard is refused: the switch itself is a logged move
+  const sw = H.setMode(hard(P1), 'easy').state;
+  const again = H.setMode(sw, 'hard');
+  assert.deepEqual([again.ok, again.reason], [false, 'started']);
+  assert.equal(again.state.mode, 'easy');
+});
+
+test('setMode: finished games refuse with "over"; the same mode is a no-op', () => {
+  const won = play(P1, ['T004', 'T007'], 'hard');
+  const lost = play(P1, ['T012', 'T017', 'T010'], 'easy');
+  const wonEasy = play(P1, ['T004', 'T007'], 'easy');
+  for (const [s, to] of [[won, 'easy'], [lost, 'hard'], [wonEasy, 'hard'], [play(P1, ['T012', 'T017', 'T010'], 'hard'), 'easy']]) {
+    const r = H.setMode(deepFreeze(s), to);
+    assert.deepEqual([r.ok, r.reason], [false, 'over']);
+    assert.deepEqual(r.state, s);
+  }
+  // same mode: ok, unchanged, nothing logged (also on a started or finished game)
+  for (const [s, mode] of [[hard(P1), 'hard'], [easy(P1), 'easy'], [play(P1, ['T004'], 'hard'), 'hard'], [play(P1, ['T004'], 'easy'), 'easy'], [won, 'hard'], [lost, 'easy']]) {
+    const r = H.setMode(deepFreeze(s), mode);
+    assert.equal(r.ok, true);
+    assert.equal(r.reason, undefined);
+    assert.deepEqual(r.state, s);
+    assert.notEqual(r.state, s);
+  }
+  // an unknown mode means hard, like everywhere else
+  assert.equal(H.setMode(easy(P1), 'zzz').state.mode, 'hard');
+  assert.equal(H.setMode(hard(P1), 'zzz').ok, true);
+  assert.equal(H.setMode(hard(P1), 'zzz').state.log.length, 0);
+});
+
+test('setMode: states saved before modes existed count as easy', () => {
+  const fresh = play(P1, [], 'legacy');
+  assert.equal(fresh.mode, undefined);
+  assert.equal(fresh.par, 4);
+  // same (easy) mode: no-op, the state is left exactly as saved
+  const same = H.setMode(fresh, 'easy');
+  assert.deepEqual([same.ok, same.state], [true, fresh]);
+  // easy -> hard before any move works, and then there is a mode
+  const up = H.setMode(fresh, 'hard');
+  assert.equal(up.ok, true);
+  assert.deepEqual([up.state.mode, up.state.par], ['hard', 5]);
+  // after a move it is refused
+  const moved = play(P1, ['T004'], 'legacy');
+  assert.deepEqual([H.setMode(moved, 'hard').ok, H.setMode(moved, 'hard').reason], [false, 'started']);
+  // a legacy game finished: over
+  assert.equal(H.setMode(play(P1, ['T004', 'T007'], 'legacy'), 'hard').reason, 'over');
+  // a legacy state without best uses best = par
+  const noBest = { ...fresh, par: 3 }; delete noBest.best;
+  assert.equal(H.setMode(noBest, 'hard').state.par, 5);
+  // scoring a legacy state keeps working and reports easy
+  const sc = H.score(play(P1, ['T004', 'T007'], 'legacy'));
+  assert.deepEqual([sc.over, sc.label, sc.mode], [-1, 'Birdie', 'easy']);
+  // a legacy state can still be played on: guess, undo, hint
+  const g = H.guess(idx, fresh, 'T004').state;
+  assert.equal(g.mode, undefined);
+  assert.equal(H.hint(idx, g).hint.team, 'OAK');
+});
+
+test('shareText: hard games carry a mode tag, easy and saved-before-modes ones do not', () => {
+  const T = 'cev64.github.io/handoff/#1';
+  // hard eagle (optimal chain)
+  assert.equal(H.shareText(P1, play(P1, ['T004', 'T007'], 'hard')), `Chainmates #1 🏈 · Hard\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\n${T}`);
+  // hard birdie (best + 1)
+  assert.equal(H.shareText(P1, play(P1, ['T004', 'T006', 'T007'], 'hard')), `Chainmates #1 🏈 · Hard\n🟩🟩🟩🟩 4 links · Par 5 · Birdie 🐦\n${T}`);
+  // hard par (best + 2)
+  assert.equal(H.shareText(P1, play(P1, ['T015', 'T006', 'T004', 'T007'], 'hard')), `Chainmates #1 🏈 · Hard\n🟩🟩🟩🟩🟩 5 links · Par 5 ⛳\n${T}`);
+  // hard +1, with an incompletion and a hint
+  const over = { ...play(P1, ['T012', 'h'], 'hard'), chain: ['T001', 'a', 'b', 'c', 'd', 'e', 'T003'], status: 'won' };
+  assert.equal(H.shareText(P1, over), `Chainmates #1 🏈 · Hard\n🟩🟩🟩🟩🟩🟨 6 links · Par 5 (+1)\n🟥 1 incompletion\n💡 1 hint\n${T}`);
+  // easy birdie: no tag, par 4
+  assert.equal(H.shareText(P1, play(P1, ['T004', 'T007'], 'easy')), `Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\n${T}`);
+  // easy par
+  assert.equal(H.shareText(P1, play(P1, ['T004', 'T006', 'T007'], 'easy')), `Chainmates #1 🏈\n🟩🟩🟩🟩 4 links · Par 4 ⛳\n${T}`);
+  // lost in hard keeps the tag and the hard par; lost in easy has none
+  assert.equal(H.shareText(P1, play(P1, ['T012', 'T017', 'T010'], 'hard')), `Chainmates #1 🏈 · Hard\n🏳️ Turnover on downs · Par 5\n🟥 3 incompletions\n${T}`);
+  assert.equal(H.shareText(P1, play(P1, ['T012', 'T017', 'T010'], 'easy')), `Chainmates #1 🏈\n🏳️ Turnover on downs · Par 4\n🟥 3 incompletions\n${T}`);
+  // hard -> easy mid-game: shared as the final mode (easy), with the easy par
+  const sw = H.setMode(play(P1, ['T004'], 'hard'), 'easy').state;
+  assert.equal(H.shareText(P1, H.guess(idx, sw, 'T007').state), `Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\n${T}`);
+  // uses state.par, not puzzle.par: the fixture puzzle's own par (4) is the easy par
+  assert.equal(P1.par, 4);
+  assert.match(H.shareText(P1, play(P1, ['T004', 'T007'], 'hard')), /Par 5/);
+  // a custom title and emoji keep the tag after the emoji
+  assert.equal(H.shareText(P1, play(P1, ['T004', 'T007'], 'hard'), { title: 'Chainmates NBA', emoji: '🏀' }),
+    `Chainmates NBA #1 🏀 · Hard\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\n${T}`);
+  // hardLabel replaces the word; it never touches easy games
+  assert.equal(H.shareText(P1, play(P1, ['T004', 'T007'], 'hard'), { hardLabel: 'Pro' }).split('\n')[0], 'Chainmates #1 🏈 · Pro');
+  assert.equal(H.shareText(P1, play(P1, ['T004', 'T007'], 'easy'), { hardLabel: 'Pro' }).split('\n')[0], 'Chainmates #1 🏈');
+  assert.equal(H.shareText(P1, play(P1, ['T004', 'T007'], 'hard'), { hardLabel: '' }).split('\n')[0], 'Chainmates #1 🏈 · Hard');
+  // never leaks names
+  assert.doesNotMatch(H.shareText(P1, play(P1, ['T004', 'T007'], 'hard')), /Marlow|Tolliver|Broncos|DEN/);
+});
+
+test('stats: hard-mode Eagle lands in the -2 bucket, results store the mode', () => {
+  const eagle = play(P1, ['T004', 'T007'], 'hard');
+  const hBirdie = play(P1, ['T004', 'T006', 'T007'], 'hard');
+  const hPar = play(P1, ['T015', 'T006', 'T004', 'T007'], 'hard');
+  const eBirdie = play(P1, ['T004', 'T007'], 'easy');
+  const lost = play(P1, ['T012', 'T017', 'T010'], 'hard');
+  let st = H.newStats();
+  st = H.recordResult(st, 1, eagle);
+  assert.deepEqual(st.hist, { '-2': 1, '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(st.results[1], { links: 3, par: 5, inc: 0, hints: 0, won: true, mode: 'hard' });
+  st = H.recordResult(st, 2, hBirdie);
+  st = H.recordResult(st, 3, hPar);
+  st = H.recordResult(st, 4, eBirdie);
+  assert.deepEqual(st.hist, { '-2': 1, '-1': 2, 0: 1, 1: 0, 2: 0, 3: 0, X: 0 });
+  assert.deepEqual(st.results[2], { links: 4, par: 5, inc: 0, hints: 0, won: true, mode: 'hard' });
+  assert.deepEqual(st.results[4], { links: 3, par: 4, inc: 0, hints: 0, won: true, mode: 'easy' });
+  // streaks are unchanged: every one of these is par or better
+  assert.deepEqual([st.cur, st.max, st.parCur, st.parMax], [4, 4, 4, 4]);
+  // an over-par hard result (+1) ends the par streak but not the win streak
+  st = H.recordResult(st, 5, { ...hard(P1), chain: ['T001', 'a', 'b', 'c', 'd', 'e', 'T003'], status: 'won', inc: 0, hints: 0 });
+  assert.deepEqual([st.cur, st.parCur, st.parMax, st.hist[1]], [5, 0, 4, 1]);
+  st = H.recordResult(st, 6, lost);
+  assert.deepEqual([st.cur, st.hist.X, st.results[6].mode, st.results[6].won], [0, 1, 'hard', false]);
+  // a game that switched mode records its final mode
+  const sw = H.guess(idx, H.guess(idx, H.setMode(hard(P1), 'easy').state, 'T004').state, 'T007').state;
+  assert.equal(H.recordResult(H.newStats(), 9, sw).results[9].mode, 'easy');
+  // a state saved before modes existed records as easy
+  assert.equal(H.recordResult(H.newStats(), 9, play(P1, ['T004', 'T007'], 'legacy')).results[9].mode, 'easy');
+});
+
+test('stats: saved stats without the -2 bucket keep working', () => {
+  const saved = { v: 1, played: 2, won: 2, cur: 2, max: 2, parCur: 2, parMax: 2, last: 6, lastWon: 6,
+    hist: { '-1': 1, 0: 1, 1: 0, 2: 0, 3: 0, X: 0 }, results: { 5: { links: 3, par: 4, inc: 0, hints: 0, won: true }, 6: { links: 4, par: 4, inc: 0, hints: 0, won: true } } };
+  const st = H.recordResult(deepFreeze(saved), 7, play(P1, ['T004', 'T007'], 'hard'));
+  assert.equal(st.hist['-2'], 1);
+  assert.equal(st.hist['-1'], 1);
+  assert.equal(Number.isNaN(st.hist['-2']), false);
+  assert.deepEqual([st.parCur, st.parMax, st.cur, st.won], [3, 3, 3, 3]);
+  assert.equal(saved.hist['-2'], undefined);
+  // results saved without a mode are left alone
+  assert.equal(st.results[5].mode, undefined);
+  // a loss on stats that never had either bucket
+  const bare = { v: 1, played: 0, won: 0, cur: 0, max: 0, parCur: 0, parMax: 0, last: 0, lastWon: 0, hist: { 0: 0, 1: 0, 2: 0, 3: 0, X: 0 }, results: {} };
+  assert.equal(H.recordResult(bare, 1, play(P1, ['T012', 'T017', 'T010'], 'hard')).hist.X, 1);
+});
+
+test('stintRanges: merges consecutive seasons, keeps gaps and trades apart', () => {
+  const r = (id) => H.stintRanges(idx, id);
+  // gap between two different teams: chronological
+  assert.deepEqual(r('T001'), [{ team: 'IND', from: 2002, to: 2010 }, { team: 'DEN', from: 2012, to: 2015 }]);
+  assert.deepEqual(r('T004'), [{ team: 'DEN', from: 2014, to: 2015 }, { team: 'OAK', from: 2016, to: 2017 }]);
+  // one season with one team
+  assert.deepEqual(r('T006'), [{ team: 'DEN', from: 2013, to: 2013 }, { team: 'OAK', from: 2017, to: 2017 }]);
+  // one team only
+  assert.deepEqual(r('T003'), [{ team: 'LV', from: 2020, to: 2022 }]);
+  // a mid-season trade: separate entries for the same season, ordered by team
+  assert.deepEqual(r('T002'), [{ team: 'MIN', from: 2010, to: 2010 }, { team: 'NYJ', from: 2010, to: 2010 }]);
+  assert.deepEqual(r('T005'), [{ team: 'IND', from: 2010, to: 2010 }, { team: 'NYJ', from: 2010, to: 2010 }]);
+  // a gap with the same team splits it
+  assert.deepEqual(r('T018'), [{ team: 'WAS', from: 2019, to: 2019 }, { team: 'WAS', from: 2022, to: 2022 }]);
+  // an abbreviation change is a different team: OAK 2019 and LV 2020 do not merge
+  assert.deepEqual(r('T007'), [{ team: 'OAK', from: 2017, to: 2017 }, { team: 'LV', from: 2020, to: 2021 }]);
+  assert.deepEqual(r('T008'), [{ team: 'GB', from: 2018, to: 2021 }, { team: 'LV', from: 2022, to: 2022 }]);
+  assert.deepEqual(r('nope'), []);
+  // the result is plain data, and a fresh array every time
+  assert.deepEqual(JSON.parse(JSON.stringify(r('T001'))), r('T001'));
+  assert.notEqual(r('T001'), r('T001'));
+  r('T001').push({ team: 'X', from: 1, to: 1 });
+  assert.equal(r('T001').length, 2);
+});
+
+test('stintRanges: odd stint strings (unsorted, duplicate, returns to a team, trade in the middle)', () => {
+  const mk = (stints) => H.buildIndex({ v: 1, sport: 'nfl', teams: {}, players: [['p', 'P', 'QB', 1, stints]] });
+  const sr = (stints) => H.stintRanges(mk(stints), 'p');
+  // out of order input comes back chronological, runs merge across separate range entries
+  assert.deepEqual(sr('DEN:2014-2015;DEN:2012-2013'), [{ team: 'DEN', from: 2012, to: 2015 }]);
+  assert.deepEqual(sr('DEN:2013;DEN:2012;DEN:2014'), [{ team: 'DEN', from: 2012, to: 2014 }]);
+  // duplicate seasons collapse
+  assert.deepEqual(sr('DEN:2012-2013;DEN:2013'), [{ team: 'DEN', from: 2012, to: 2013 }]);
+  // leaving a team and coming back later
+  assert.deepEqual(sr('DEN:2010-2011;IND:2012-2014;DEN:2015'), [
+    { team: 'DEN', from: 2010, to: 2011 }, { team: 'IND', from: 2012, to: 2014 }, { team: 'DEN', from: 2015, to: 2015 }]);
+  // same start season: ordered by team code
+  assert.deepEqual(sr('NE:2010-2012;DEN:2010-2011'), [{ team: 'DEN', from: 2010, to: 2011 }, { team: 'NE', from: 2010, to: 2012 }]);
+  // a trade in the middle of a long stay keeps the long stay whole
+  assert.deepEqual(sr('DEN:2012-2014;IND:2013'), [{ team: 'DEN', from: 2012, to: 2014 }, { team: 'IND', from: 2013, to: 2013 }]);
+  assert.deepEqual(sr(''), []);
+});
+
 test('puzzle 2 full run through the trade is a birdie', () => {
   const s = play(P2, ['T005', 'T002']);
   assert.equal(s.status, 'won');
-  assert.deepEqual(H.score(s), { links: 3, par: 4, best: 3, over: -1, label: 'Birdie', won: true });
+  assert.deepEqual(H.score(s), { links: 3, par: 4, best: 3, over: -1, label: 'Birdie', won: true, mode: 'easy' });
   assert.equal(H.validateChain(idx, s.chain).ok, true);
   assert.equal(H.shareText(P2, s), 'Chainmates #2 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\ncev64.github.io/handoff/#2');
 });

@@ -15,6 +15,7 @@
     toastMs: 3400,
   };
   const THEME_KEY = 'chainmates.theme';
+  const MODE_KEY = 'chainmates.mode';       // preferred difficulty for new games ('hard' | 'easy'); one choice across sports
 
   /* ------------------------------------------------------------ sport */
   const sportKeys = Object.keys(SPORTS);
@@ -170,34 +171,60 @@
     return 1.05 / (L + 0.05) >= (L + 0.05) / 0.0582 ? '#ffffff' : '#0b1726';
   }
   /** ClubChip: the team code on its primary colour with a thin secondary stripe; ink picked by luminance. */
-  function chip(team, season) {
+  function chip(team, season, bare) {
     const t = TEAMS[team] || {};
     const c1 = t.c1 || '#8A94A1', c2 = t.c2 || c1;
     const title = season != null ? H.teamFullName(index, team, season) + ' (' + season + ')' : (t.city ? t.city + ' ' : '') + (t.name || team);
-    return '<span class="club" style="--c1:' + esc(c1) + ';--c2:' + esc(c2) + ';--ci:' + inkFor(c1) + '" title="' + esc(title) + '">' + esc(team) + '</span>';
+    return '<span class="club" style="--c1:' + esc(c1) + ';--c2:' + esc(c2) + ';--ci:' + inkFor(c1) + '"' + (bare ? '' : ' title="' + esc(title) + '"') + '>' + esc(team) + '</span>';
   }
-  /** Most recent distinct franchises a player played for, newest first (display only). */
-  function recentTeams(p, k) {
-    const seen = new Set(), out = [];
-    for (const s of p.stints.slice().sort((a, b) => b.season - a.season)) {
-      const f = (TEAMS[s.team] && TEAMS[s.team].franchise) || s.team;
-      if (seen.has(f)) continue;
-      seen.add(f); out.push(s);
-      if (out.length >= k) break;
+  /** "12–15" for a run of seasons (the full career range is on the meta line), "2015" for a single season. */
+  const stintYears = (r) => (r.from === r.to ? String(r.from) : String(r.from).slice(-2) + '\u2013' + String(r.to).slice(-2));
+  /**
+   * Easy mode's career line: every stint (H.stintRanges, chronological) as a ClubChip joined to its years, strung on a hairline.
+   * `max` keeps search rows to one line: the longest stints stay (still in career order) and the rest fold into "+N more".
+   * Hard mode shows no teams at all, so this returns ''.
+   */
+  function careerHTML(p, max) {
+    if (!p || modeOf() !== 'easy') return '';
+    let rs = H.stintRanges(index, p.id), more = 0;
+    if (max && rs.length > max) {
+      const keep = new Set(rs.map((r, i) => [r.to - r.from, r.to, i]).sort((a, b) => b[0] - a[0] || b[1] - a[1]).slice(0, max).map((x) => x[2]));
+      more = rs.length - max;
+      rs = rs.filter((r, i) => keep.has(i));
     }
-    return out;
+    const label = rs.map((r) => teamFullName(r.team, r.to) + ' ' + (r.from === r.to ? r.from : r.from + ' to ' + r.to)).join(', ') + (more ? ', and ' + more + ' more' : '');
+    return '<span class="career" role="img" aria-label="' + esc(label) + '">' + rs.map((r, i) => '<span class="stint" style="--i:' + i + '">' + chip(r.team, r.to, true) + '<span class="yrs">' + stintYears(r) + '</span></span>').join('') +
+      (more ? '<span class="stint-more" style="--i:' + rs.length + '">+' + more + ' more</span>' : '') + '</span>';
   }
-  const chipsFor = (p, k) => recentTeams(p, k).map((s) => chip(s.team, s.season)).join('');
+  const teamFullName = (team, season) => H.teamFullName(index, team, season);
   const posAbbr = (p) => esc((p.pos || '').slice(0, 3) || '•');
 
   /* ------------------------------------------------------------ scoring display (the numbers all come from H.score) */
   /** Fewest links possible for a puzzle, as the core reads it (older data has no `best`: par was the fewest then). */
   const bestOf = (p) => H.newGame(p).best;
   const UNDER_WORDS = ['', 'one', 'two', 'three'];
-  /** Display tier of a finished game: birdie (under par, brass), par (solid ink), over, x. */
-  const tierOf = (sc) => (!sc.won ? 'x' : sc.over < 0 ? 'birdie' : sc.over === 0 ? 'par' : 'over');
+  /** Display tier of a finished game: eagle (two under, strong brass), birdie (one under, brass), par (solid ink), over, x. */
+  const tierOf = (sc) => (!sc.won ? 'x' : sc.over <= -2 ? 'eagle' : sc.over < 0 ? 'birdie' : sc.over === 0 ? 'par' : 'over');
   const underText = (over) => (UNDER_WORDS[-over] || String(-over)) + ' under par';
   const shareOpts = () => ({ url: CONFIG.shareUrl, title: S.title, emoji: S.emoji, miss: S.miss, lost: S.lost });
+  const article = (w) => (/^[aeiou]/i.test(w) ? 'an ' : 'a ') + w;
+
+  /* ------------------------------------------------------------ difficulty (rules in the core: H.MODES, H.parFor, H.setMode) */
+  const MODE_NAME = { hard: 'Hard', easy: 'Easy' };
+  const knownMode = (m) => !!(H.MODES && Object.prototype.hasOwnProperty.call(H.MODES, m));
+  function prefMode() { const m = store.raw(MODE_KEY); return knownMode(m) ? m : H.DEFAULT_MODE; }
+  const setPrefMode = (m) => store.rawSet(MODE_KEY, m);
+  /** The mode of a state as the core reads it (a state saved before modes existed is easy); no state: the preference. */
+  const modeOf = (st) => { st = st || (game && game.state); return st ? H.score(st).mode : prefMode(); };
+  /** What a score would be called at `links` links in this state (from the core, so labels never drift). */
+  const labelAt = (st, links) => H.score(Object.assign({}, st, { chain: new Array(links + 1).fill(''), status: 'won' })).label;
+  /** The under-par ladder for a state: [[links, 'birdie'], [links, 'eagle']], from par − 1 down to the fewest possible. */
+  function underLadder(st) {
+    const out = [];
+    for (let l = st.par - 1; l >= st.best && l > 0; l--) out.push([l, labelAt(st, l).toLowerCase()]);
+    return out;
+  }
+  const spareWord = (n) => (['none', 'one', 'two', 'three'][n] || String(n));
 
   /* ------------------------------------------------------------ hints (copy from the sport registry, picked deterministically) */
   /** FNV-1a over "puzzle.position": the same puzzle and chain spot always pick the same line, on any device. */
@@ -315,7 +342,7 @@
 
   /* ------------------------------------------------------------ game state */
   function validState(st, p) {
-    return !!st && typeof st === 'object' && Number.isInteger(st.downs) && st.downs >= 0 && Number.isInteger(st.inc) && Number.isInteger(st.hints) && st.n === p.n && st.start === p.start && st.end === p.end && st.par === p.par && (st.best == null || st.best === bestOf(p)) &&
+    return !!st && typeof st === 'object' && Number.isInteger(st.downs) && st.downs >= 0 && Number.isInteger(st.inc) && Number.isInteger(st.hints) && st.n === p.n && st.start === p.start && st.end === p.end && st.par === H.parFor(p, modeOf(st)) && (st.best == null || st.best === bestOf(p)) &&
       Array.isArray(st.chain) && st.chain[0] === p.start && st.chain.every((id) => !!H.player(index, id)) &&
       ['playing', 'won', 'lost'].indexOf(st.status) >= 0 && Array.isArray(st.log) && !!st.hintAt && typeof st.hintAt === 'object';
   }
@@ -324,7 +351,7 @@
   function startGame(p, mode) {
     const key = stateKey(mode, p.n);
     let st = store.get(key, null);
-    if (!validState(st, p)) st = H.newGame(p);
+    if (!validState(st, p)) st = H.newGame(p, { mode: prefMode() });
     game = { puzzle: p, mode, key, state: st, shownDowns: st.downs };
     busy = false;
     if (mode === 'daily' && st.status !== 'playing') recordDaily();
