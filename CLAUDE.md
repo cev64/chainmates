@@ -1,4 +1,4 @@
-# Handoff
+# Chainmates
 
 A daily teammate-chain trivia game: connect two players through teammates in as few links as possible. It starts with the NFL and is sport-agnostic by design. There is a static web app (`web/`) and, later, a SwiftUI app (`ios/`). There's no backend.
 

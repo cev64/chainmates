@@ -354,24 +354,24 @@ test('score labels', () => {
 test('shareText: par win with 1 incompletion', () => {
   const s = play(P1, ['T012', 'T004', 'T007']);
   const text = H.shareText({ ...P1, n: 42 }, s);
-  assert.equal(text, 'Handoff #42 \u{1F3C8}\n\u{1F7E9}\u{1F7E9}\u{1F7E9} 3 links · Par 3 ⛳\n\u{1F7E5} 1 incompletion\ncev64.github.io/handoff/#42');
-  assert.equal(text, 'Handoff #42 🏈\n🟩🟩🟩 3 links · Par 3 ⛳\n🟥 1 incompletion\ncev64.github.io/handoff/#42');
+  assert.equal(text, 'Chainmates #42 \u{1F3C8}\n\u{1F7E9}\u{1F7E9}\u{1F7E9} 3 links · Par 3 ⛳\n\u{1F7E5} 1 incompletion\ncev64.github.io/handoff/#42');
+  assert.equal(text, 'Chainmates #42 🏈\n🟩🟩🟩 3 links · Par 3 ⛳\n🟥 1 incompletion\ncev64.github.io/handoff/#42');
 });
 
 test('shareText: +1 win with a hint', () => {
   const s = play(P1, ['T004', 'h', 'T006', 'T007']);
   assert.equal(s.hints, 1);
-  assert.equal(H.shareText(P1, s), 'Handoff #1 🏈\n🟩🟩🟩🟨 4 links · Par 3 (+1)\n💡 1 hint\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🟩🟩🟩🟨 4 links · Par 3 (+1)\n💡 1 hint\ncev64.github.io/handoff/#1');
 });
 
 test('shareText: loss, plural lines, custom url/title/emoji', () => {
   const s = play(P1, ['h', 'h', 'T012', 'T017']); // hint (downs 2), repeat free, 2 incompletions -> lost
   assert.equal(s.status, 'lost');
-  assert.equal(H.shareText(P1, s), 'Handoff #1 🏈\n🏳️ Turnover on downs · Par 3\n🟥 2 incompletions\n💡 1 hint\ncev64.github.io/handoff/#1');
-  const t = H.shareText(P1, s, { url: 'example.com/h/', title: 'Handoff NBA', emoji: '🏀' });
-  assert.equal(t, 'Handoff NBA #1 🏀\n🏳️ Turnover on downs · Par 3\n🟥 2 incompletions\n💡 1 hint\nexample.com/h/#1');
+  assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🏳️ Turnover on downs · Par 3\n🟥 2 incompletions\n💡 1 hint\ncev64.github.io/handoff/#1');
+  const t = H.shareText(P1, s, { url: 'example.com/h/', title: 'Chainmates NBA', emoji: '🏀' });
+  assert.equal(t, 'Chainmates NBA #1 🏀\n🏳️ Turnover on downs · Par 3\n🟥 2 incompletions\n💡 1 hint\nexample.com/h/#1');
   const clean = play(P1, ['T004', 'T007']);
-  assert.equal(H.shareText(P1, clean), 'Handoff #1 🏈\n🟩🟩🟩 3 links · Par 3 ⛳\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, clean), 'Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 3 ⛳\ncev64.github.io/handoff/#1');
   // never leaks names
   assert.doesNotMatch(H.shareText(P1, clean), /Marlow|Tolliver|Broncos|DEN/);
   const multi = play(P1, ['h', 'T004', 'h', 'T007']);

@@ -49,14 +49,14 @@
   ],
   "shareText": [
     { "puzzle": { "n": 42, "par": 3 }, "state": { "chain": ["a", "b", "c", "d"], "inc": 1, "hints": 0, "status": "won" },
-      "out": "Handoff #42 🏈\n🟩🟩🟩 3 links · Par 3 ⛳\n🟥 1 incompletion\ncev64.github.io/handoff/#42" },
+      "out": "Chainmates #42 🏈\n🟩🟩🟩 3 links · Par 3 ⛳\n🟥 1 incompletion\ncev64.github.io/handoff/#42" },
     { "puzzle": { "n": 7, "par": 3 }, "state": { "chain": ["a", "b", "c", "d", "e"], "inc": 0, "hints": 1, "status": "won" },
-      "out": "Handoff #7 🏈\n🟩🟩🟩🟨 4 links · Par 3 (+1)\n💡 1 hint\ncev64.github.io/handoff/#7" },
+      "out": "Chainmates #7 🏈\n🟩🟩🟩🟨 4 links · Par 3 (+1)\n💡 1 hint\ncev64.github.io/handoff/#7" },
     { "puzzle": { "n": 9, "par": 2 }, "state": { "chain": ["a", "b"], "inc": 2, "hints": 1, "status": "lost" },
-      "out": "Handoff #9 🏈\n🏳️ Turnover on downs · Par 2\n🟥 2 incompletions\n💡 1 hint\ncev64.github.io/handoff/#9" },
+      "out": "Chainmates #9 🏈\n🏳️ Turnover on downs · Par 2\n🟥 2 incompletions\n💡 1 hint\ncev64.github.io/handoff/#9" },
     { "puzzle": { "n": 3, "par": 2 }, "state": { "chain": ["a", "b", "c"], "inc": 0, "hints": 2, "status": "won" },
-      "opts": { "url": "example.com/x/", "title": "Handoff NBA", "emoji": "🏀" },
-      "out": "Handoff NBA #3 🏀\n🟩🟩 2 links · Par 2 ⛳\n💡 2 hints\nexample.com/x/#3" }
+      "opts": { "url": "example.com/x/", "title": "Chainmates NBA", "emoji": "🏀" },
+      "out": "Chainmates NBA #3 🏀\n🟩🟩 2 links · Par 2 ⛳\n💡 2 hints\nexample.com/x/#3" }
   ],
   "puzzleNumberForDate": [
     { "epoch": "2026-10-12", "ymd": "2026-10-12", "n": 1 },

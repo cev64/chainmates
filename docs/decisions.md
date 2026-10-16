@@ -2,14 +2,14 @@
 
 ## Multi-sport from day one (Oct 16, 2026)
 
-Charlie doesn't want Handoff to be NFL-only, so nothing below the client's sport registry knows about the NFL:
+Charlie doesn't want the game to be NFL-only, so nothing below the client's sport registry knows about the NFL:
 
 - **Data:** each sport has its own folder, `data/<sport>/players.json` and `puzzles.json`, carrying a `sport` field. Teams, labels and colours live in the data.
 - **Core:** `handoff-core.js` holds no hard-coded teams. Share text takes `title` and `emoji`.
 - **Web:** `web/sports.js` holds the sport-specific words, such as "downs", "incompletion" and "Turnover on downs". There is no sport picker until a second sport exists.
 - **Pipeline:** `tools/build_data.py` is the NFL builder. A new sport needs its own builder that writes the same format. Pipeline steps 4 and 5 (graph, BFS, puzzle picking) are generic and can be pulled into a shared module when the second sport lands.
 
-**The name is the open question.** "Handoff" and "downs" are football words. If more sports are coming, a sport-neutral brand (for example *Chainmates*) with per-sport modes may be better. See `docs/research.md` for name and domain availability.
+**Name: Chainmates** (Charlie, Oct 16, 2026). It's sport-neutral, and each sport is a mode: "Chainmates · Football". The football vocabulary (downs, incompletion, turnover on downs) belongs to the football mode. The domain chainmates.app looked unregistered on Oct 16; buy it before announcing. The share URL stays `cev64.github.io/handoff/` until then. Renaming the GitHub repo is optional, but Pages URLs follow the repo name.
 
 **Data sources to check per sport:**
 
@@ -23,6 +23,10 @@ Apply the same rule as for the NFL: use no scraping of sites whose terms forbid 
 
 ## Rules (v1)
 
+- **Teammates = the 53-man roster** (Charlie). Two players are teammates if both were on the same team's 53-man roster (weekly status `ACT` or `INA`) in the same season, or recorded a stat or snap for it.
+  - Practice squad, IR/reserve lists and preseason-only players don't count.
+  - The rule is season-level, so a player traded mid-season is a teammate of everyone on both teams that season, even players who left before the trade. That keeps the reason simple ("Teammates on the 2015 Broncos"). Requiring overlapping weeks would need week ranges in the data; revisit only if playtesters object.
+
 - **3 downs** (Charlie). Hints cost a down and are refused on the last down.
 - **Eras:** 2002 onward only (Charlie).
 - **Price:** free, with no monetization in v1 (Charlie). The later paid tier is "unlimited plays" (free play / random pairs). It would use StoreKit on iOS, with no prices or "Pro" wording in the app before then.
@@ -31,7 +35,7 @@ Apply the same rule as for the NFL: use no scraping of sites whose terms forbid 
 
 ## iOS architecture: run `handoff-core.js` in JavaScriptCore; keep search and UI native
 
-Pigskin Pantheon runs its whole site engine in a hidden WKWebView, because its engine is large and DOM-adjacent. Handoff's core is different. It is about 430 lines of pure ES2018 with no DOM, fetch, timers or Intl dependency (Intl has a fallback), and it is exported as a UMD.
+Pigskin Pantheon runs its whole site engine in a hidden WKWebView, because its engine is large and DOM-adjacent. Chainmates' core is different. It is about 430 lines of pure ES2018 with no DOM, fetch, timers or Intl dependency (Intl has a fallback), and it is exported as a UMD.
 
 **Plan:**
 - Bundle `core/handoff-core.js` and call it through a `JSContext` (JavaScriptCore). That is synchronous, has no web process, and starts in milliseconds.

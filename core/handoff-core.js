@@ -1,4 +1,4 @@
-/*! Handoff core: pure, sport-agnostic game logic for the daily teammate-chain puzzle (all team data comes from players.json `teams`).
+/*! Chainmates core: pure, sport-agnostic game logic for the daily teammate-chain puzzle (all team data comes from players.json `teams`).
  *  ES2018, no dependencies, no DOM/fetch/timers. UMD: Node (require), browser (globalThis.HandoffCore), JavaScriptCore.
  *  Contract: docs/spec.md */
 (function (root, factory) {
@@ -360,7 +360,7 @@
   function shareText(puzzle, state, opts) {
     const url = (opts && opts.url) || 'cev64.github.io/handoff/';
     const sc = score(state), par = puzzle.par, over = Math.max(0, sc.links - par);
-    const title = (opts && opts.title) || 'Handoff';
+    const title = (opts && opts.title) || 'Chainmates';
     const emoji = (opts && opts.emoji) || '\u{1F3C8}';
     const lines = [title + ' #' + puzzle.n + ' ' + emoji];
     if (sc.won) {

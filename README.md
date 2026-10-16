@@ -1,4 +1,4 @@
-# Handoff
+# Chainmates
 
 A daily teammate-chain trivia game. You get two players, for example *Brett Favre → Josh Jacobs*, and connect them through a chain of teammates in as few links as possible. Par is the shortest possible chain. You have 3 downs: a wrong guess is an incompletion. You share a spoiler-free result card.
 

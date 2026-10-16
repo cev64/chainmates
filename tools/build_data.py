@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Handoff's client data from nflverse (CC-BY 4.0).
+"""Build Chainmates' client data from nflverse (CC-BY 4.0).
 
   python3 tools/build_data.py                 # download (cached), build players.json, extend puzzles.json
   python3 tools/build_data.py --rebuild --epoch 2026-10-12 --days 400
@@ -139,7 +139,9 @@ def load(seasons, offline):
         if w is not None:
             w = w[w.gsis_id.notna()]
             rosters.append(w[["gsis_id", "full_name", "position", "season", "team"]])
-            a = w[w.status == "ACT"]
+            # On the 53-man roster that week: ACT, or INA (game-day inactive, recorded from 2019).
+            # Practice squad (DEV), reserve lists (RES: IR, PUP, suspended) and cuts don't count.
+            a = w[w.status.isin(["ACT", "INA"])]
             ev.append(pd.DataFrame({"pid": a.gsis_id, "fr": norm_team(a.team), "season": y, "week": a.week}))
         s = read(f"stats_player/stats_player_week_{y}.parquet", offline, cur)
         if s is not None:

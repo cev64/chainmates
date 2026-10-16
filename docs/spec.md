@@ -1,4 +1,4 @@
-# Handoff spec: data files, rules, and core API
+# Chainmates spec: data files, rules, and core API
 
 This is the contract between `tools/build_data.py`, which produces the data, `core/handoff-core.js`, which holds the logic, and the clients (`web/`, and later `ios/`).
 
@@ -26,18 +26,18 @@ So difficulty comes from **par and the number of optimal routes**. Par-2 pairs h
 - `tools/puzzle_overrides.json` pins hand-picked pairs to dates, for holidays and big games.
 - The endpoint pool is the top 400 by fame, about 65% QB/RB/WR/TE and 35% defenders. Kickers, punters and linemen are never endpoints, though they are valid links.
 
-## "Played a game" (stints)
+## Stints (who counts as a teammate)
 
-A player has a stint for a team-season if any of these is true:
+A player has a stint for a team-season (the 53-man roster rule) if any of these is true:
 - they have a stat line for that team in any game, from `stats_player_week`
 - they played at least 1 snap, from `snap_counts` (2012 onward). Super Bowl rows are dropped, because their teams are swapped in some seasons.
-- they had `ACT` status in a week in `roster_weekly`
+- they had `ACT` or `INA` status in a week in `roster_weekly`, meaning they were on the 53-man roster
 
-From 2019, `ACT` means active on game day, as opposed to `INA` inactive or `DEV` practice squad. Before 2019 the feed doesn't record inactives, so `ACT` means the 53-man roster. Peyton Manning, for example, counts as a 2011 Colt.
+Practice squad (`DEV`), reserve lists (`RES`) and cuts are excluded. A player traded mid-season has a stint with both teams that season.
 
 ## Rules (v1)
 
-- A **link** joins two players who were **teammates**. That means the same team abbreviation in the same season, with both having at least one game for that team in that season. Regular season and playoffs both count.
+- A **link** joins two players who were **teammates**: on the same team's 53-man roster in the same season (see "Stints" below). Regular season and playoffs both count.
 - A chain is `[start, m1, m2, ..., end]`. Links = `chain.length - 1`.
   - The player adds the middle players one at a time.
   - Each added player must be a teammate of the **current last player** of the chain.
@@ -154,7 +154,7 @@ Washington's nickname by season:
 ## Share text
 
 ```
-Handoff #42 🏈
+Chainmates #42 🏈
 🟩🟩🟩 3 links · Par 3 ⛳
 🟥 1 incompletion
 cev64.github.io/handoff/#42
@@ -230,7 +230,7 @@ H.guess(index, state, id)     // -> {state, result} (state is a NEW object; inpu
 H.undo(state)                 // -> state (no-op if chain has only start or game over)
 H.hint(index, state)          // -> {state, hint:{team,season}} | {state, error:"last-down"|"over"|"none"}
 H.score(state)                // {links, par, over, label:"Par"|"+1"|"X", won}
-H.shareText(puzzle, state, {url="cev64.github.io/handoff/", title="Handoff", emoji="🏈"}) // string per spec
+H.shareText(puzzle, state, {url="cev64.github.io/handoff/", title="Chainmates", emoji="🏈"}) // string per spec
 H.newStats() / H.recordResult(stats, puzzleN, state) -> stats / H.displayStreaks(stats, todayN) -> {cur, max, parCur, parMax}
 ```
 
