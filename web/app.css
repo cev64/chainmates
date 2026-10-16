@@ -1,4 +1,4 @@
-/* Handoff web: one token block (light + dark), then components.
+/* Chainmates web: one token block (light + dark), then components.
  * Look and feel from Pigskin Pantheon (docs/design-notes.md): navy chrome, white cards on a hairline,
  * one blue accent, gold highlight, a thin red rule, Barlow Condensed capitals for titles, Inter for the rest.
  * "Quiet at rest, lively on interaction." */
@@ -64,7 +64,7 @@
 
 /* ------------------------------------------------------------------ base */
 * { box-sizing: border-box; }
-html { scrollbar-gutter: stable; -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--header-h) + 12px); }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--header-h) + 12px); }
 body {
   margin: 0; min-height: 100vh; min-height: 100dvh;
   display: flex; flex-direction: column;
@@ -81,6 +81,7 @@ html, button, a, summary, select, [role="option"] { -webkit-tap-highlight-color:
 button, summary, [role="option"] { touch-action: manipulation; }
 :focus:not(:focus-visible) { outline: none; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[tabindex="-1"]:focus { outline: none; }
 a { color: var(--accent-ink); }
 [hidden] { display: none !important; }
 h1, h2, h3 { margin: 0; }
@@ -106,8 +107,14 @@ h1, h2, h3 { margin: 0; }
 .brand-text { display: grid; min-width: 0; }
 .brand-title { font-family: var(--font-display); font-weight: 700; font-size: 24px; line-height: 1; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .brand-accent { color: var(--gold); }
-.brand-kicker { margin-top: 3px; color: #9eb0c1; font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-sub { display: flex; align-items: center; gap: 7px; min-width: 0; margin-top: 4px; }
+.brand-mode {
+  flex: none; padding: 3px 6px 2px; border-radius: 6px; border: 1px solid rgba(246, 183, 60, .4); background: rgba(246, 183, 60, .1);
+  color: var(--gold-2); font-size: 9px; font-weight: 800; line-height: 1; letter-spacing: .14em; text-transform: uppercase;
+}
+.brand-kicker { min-width: 0; color: #9eb0c1; font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand-kicker b { color: #fff; font-weight: 700; }
+@media (max-width: 430px) { .brand-kicker .k-word { display: none; } }
 .top-actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .icon-btn {
   width: 40px; height: 40px; display: grid; place-items: center; padding: 0; flex: none;
@@ -202,6 +209,8 @@ h1, h2, h3 { margin: 0; }
   font-size: 9.5px; font-weight: 800; line-height: 1; letter-spacing: .03em; font-family: var(--font-body);
 }
 .hero .club { box-shadow: inset 0 -2px 0 var(--c2, transparent), 0 0 0 1px rgba(255, 255, 255, .14); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .club { box-shadow: inset 0 -2px 0 var(--c2, transparent), 0 0 0 1px rgba(255, 255, 255, .16); } }
+:root[data-theme="dark"] .club { box-shadow: inset 0 -2px 0 var(--c2, transparent), 0 0 0 1px rgba(255, 255, 255, .16); }
 
 /* ------------------------------------------------------------------ cards / buttons */
 .game-body { padding: 16px 0 24px; }
@@ -251,11 +260,13 @@ h1, h2, h3 { margin: 0; }
   font-size: 10px; font-weight: 800; letter-spacing: .02em;
 }
 .node-who { min-width: 0; }
-.node-who strong { display: block; font-size: 15px; font-weight: 650; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-who strong { display: block; font-size: 15px; font-weight: 650; line-height: 1.2; overflow-wrap: anywhere; }
 .node-who small { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-weight: 600; }
 .node .chips { justify-content: flex-end; max-width: 112px; }
-.node-tag { font-size: 9.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-right: 6px; }
-.node-start .node-dot { background: var(--navy); border-color: var(--navy); color: #fff; }
+@media (max-width: 420px) { .node .chips .club:nth-child(n+3) { display: none; } }
+.node-tag { font-size: 9.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-right: 5px; }
+.node-target .node-tag, .node-ghost .node-tag { color: var(--gold-ink); }
+.node-start .node-dot { background: var(--primary); border-color: var(--primary); color: #fff; }
 .node-target .node-dot { background: linear-gradient(180deg, var(--gold-2), var(--gold)); border-color: var(--gold); color: var(--navy); }
 .node-target { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); background: color-mix(in srgb, var(--gold-soft) 70%, var(--card)); }
 .node-ghost { background: transparent; border-style: dashed; border-color: var(--line-2); }
@@ -283,6 +294,8 @@ h1, h2, h3 { margin: 0; }
 
 .slot { position: relative; padding: 0 16px; }
 .target { padding: 0 16px 14px; }
+.result-wrap { padding: 0 16px; }
+.result-wrap .result-strip { margin-bottom: 14px; animation: rise .45s var(--ease) both; }
 .finder { position: relative; z-index: 5; }
 .field {
   position: relative; display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 8px 0 14px;
@@ -467,7 +480,7 @@ html.modal-open { overflow: hidden; }
 .mini-list { list-style: none; margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
 .mini-list li { display: flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; font-weight: 600; }
 .mini-list li .ml-dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--surface-3); color: var(--ink-2); font-size: 8.5px; font-weight: 800; }
-.mini-list li .ml-dot.s { background: var(--navy); color: #fff; }
+.mini-list li .ml-dot.s { background: var(--primary); color: #fff; }
 .mini-list li .ml-dot.e { background: var(--gold); color: var(--navy); }
 .mini-list li .ml-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini-list li.ml-link { min-height: 26px; margin-left: 10px; padding-left: 21px; border-left: 2px solid var(--accent); color: var(--muted); font-size: 12px; font-weight: 600; gap: 6px; }
@@ -515,7 +528,7 @@ html.modal-open { overflow: hidden; }
 @media (hover: hover) { .arch-row:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); } }
 .arch-row:active { transform: scale(.985); }
 .arch-row.today { border-color: color-mix(in srgb, var(--gold) 60%, var(--line)); box-shadow: inset 3px 0 0 var(--gold), var(--card-shadow); }
-.arch-n { height: 44px; border-radius: 11px; display: grid; place-items: center; background: var(--navy); color: #fff; font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: .02em; }
+.arch-n { height: 44px; border-radius: 11px; display: grid; place-items: center; background: var(--primary); color: #fff; font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: .02em; }
 .arch-who { min-width: 0; }
 .arch-who strong { display: block; font-size: 14.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arch-who small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

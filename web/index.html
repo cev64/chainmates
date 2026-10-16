@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-  <title>Handoff · Daily teammate chain</title>
-  <meta name="description" content="Handoff is a daily teammate-chain puzzle: connect two players through teammates in as few links as you can." />
+  <title>Chainmates · Daily teammate chain</title>
+  <meta name="description" content="Chainmates is a daily teammate-chain puzzle: connect two players through teammates in as few links as you can." />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Handoff" />
-  <meta property="og:title" content="Handoff · Daily teammate chain" />
+  <meta property="og:site_name" content="Chainmates" />
+  <meta property="og:title" content="Chainmates · Daily teammate chain" />
   <meta property="og:description" content="Connect two players through teammates. A new puzzle every day." />
   <meta name="theme-color" content="#071827" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Handoff" />
+  <meta name="apple-mobile-web-app-title" content="Chainmates" />
   <script>
     /* Theme before first paint: an explicit choice wins, otherwise the OS setting (CSS media query). */
-    try { var t = localStorage.getItem('handoff-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+    try { var t = localStorage.getItem('chainmates.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
   </script>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23071827'/%3E%3Cpath d='M8.5 22.5 15.5 10.5 23.5 19.5' fill='none' stroke='%23dbe5ee' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='8.5' cy='22.5' r='3.6' fill='%23f6b73c'/%3E%3Ccircle cx='15.5' cy='10.5' r='3.2' fill='%23fff'/%3E%3Ccircle cx='23.5' cy='19.5' r='3.6' fill='%23f6b73c'/%3E%3C/svg%3E" />
@@ -34,15 +34,15 @@
 
   <header class="topbar" id="topbar">
     <div class="wrap topbar-inner">
-      <a class="brand" href="#" id="brand" aria-label="Handoff, today's puzzle">
+      <a class="brand" href="#" id="brand" aria-label="Chainmates, today's puzzle">
         <svg class="brand-mark" viewBox="0 0 32 32" width="34" height="34" aria-hidden="true">
           <rect width="32" height="32" rx="9" fill="#102b43" />
           <path d="M8.5 22.5 15.5 10.5 23.5 19.5" fill="none" stroke="#dbe5ee" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
           <circle cx="8.5" cy="22.5" r="3.6" fill="#f6b73c" /><circle cx="15.5" cy="10.5" r="3.2" fill="#fff" /><circle cx="23.5" cy="19.5" r="3.6" fill="#f6b73c" />
         </svg>
         <span class="brand-text">
-          <span class="brand-title" id="brandTitle">Hand<span class="brand-accent">off</span></span>
-          <span class="brand-kicker" id="brandKicker">Daily teammate chain</span>
+          <span class="brand-title" id="brandTitle">Chain<span class="brand-accent">mates</span></span>
+          <span class="brand-sub"><span class="brand-mode" id="brandMode">Football</span><span class="brand-kicker" id="brandKicker">Daily teammate chain</span></span>
         </span>
       </a>
       <span class="sport-pick" id="sportPick" hidden></span>
@@ -107,10 +107,10 @@
               <ul class="ac" id="acList" role="listbox" aria-label="Matching players" hidden></ul>
             </div>
             <div class="hint-pill" id="hintPill" hidden></div>
-            <div class="result-strip" id="resultStrip" hidden></div>
           </div>
 
           <div class="target" id="target"></div>
+          <div class="result-wrap"><div class="result-strip" id="resultStrip" hidden></div></div>
 
           <div class="controls" id="controls">
             <div class="downs" id="downs" role="img" aria-label=""></div>
@@ -209,6 +209,6 @@
     </form>
   </dialog>
 
-  <noscript><p class="noscript">Handoff needs JavaScript to run.</p></noscript>
+  <noscript><p class="noscript">Chainmates needs JavaScript to run.</p></noscript>
 </body>
 </html>

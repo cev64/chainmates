@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Support · Chainmates</title>
+  <meta name="description" content="Help with Chainmates: how to play, what counts as teammates, streaks and reporting a problem." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Chainmates" />
+  <meta property="og:title" content="Support · Chainmates" />
+  <meta property="og:description" content="Help with Chainmates: how to play, what counts as teammates, streaks and reporting a problem." />
+  <meta name="theme-color" content="#071827" />
+  <script>try { var t = localStorage.getItem('chainmates.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="app.css" />
+  <style>
+    /* Long-form text for the legal and support pages (the reference's .lg template, on the app's tokens). */
+    .lg-main { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 48px; }
+    .lg { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 26px 20px 30px; font-size: 16px; line-height: 1.7; color: var(--ink); }
+    @media (min-width: 640px) { .lg { padding: 44px 48px 52px; font-size: 16.5px; } }
+    .lg h1 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 700; font-size: clamp(34px, 7vw, 46px); line-height: 1.05; letter-spacing: .02em; text-transform: uppercase; }
+    .lg .lg-meta { margin: 0 0 22px; color: var(--muted); font-size: 14.5px; }
+    .lg h2 { margin: 34px 0 8px; font-size: 21px; line-height: 1.3; font-weight: 700; }
+    .lg p { margin: 0 0 14px; }
+    .lg ul, .lg ol { margin: 0 0 14px; padding-left: 22px; }
+    .lg li { margin: 0 0 7px; }
+    .lg a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+    .lg a:focus-visible, .lg summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+    .lg code { font-size: .9em; padding: 1px 5px; border-radius: 6px; background: var(--surface-3); }
+    .lg .lg-box { margin: 0 0 20px; padding: 16px 18px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; }
+    .lg .lg-box p:last-child, .lg .lg-box ul:last-child { margin-bottom: 0; }
+    .lg .lg-box h2 { margin-top: 0; font-size: 18px; }
+    .lg .lg-caps { font-size: 14.5px; text-transform: uppercase; letter-spacing: .01em; }
+    .lg details { margin: 0 0 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+    .lg summary { cursor: pointer; padding: 14px 18px; font-weight: 700; list-style: none; }
+    .lg summary::-webkit-details-marker { display: none; }
+    .lg summary::before { content: "+"; display: inline-block; width: 1.2em; font-weight: 700; color: var(--muted); }
+    .lg details[open] summary::before { content: "\2212"; }
+    .lg details > div { padding: 0 18px 4px 38px; }
+    .lg .lg-toc { margin: 0 0 20px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+    .lg .lg-toc li { margin: 0; }
+    .lg .lg-toc a { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); font-size: 14px; font-weight: 600; text-decoration: none; color: var(--ink); }
+    .lg .lg-toc a:hover { border-color: var(--accent); }
+    .lg .lg-btn { display: inline-flex; margin: 4px 0 4px; text-decoration: none; color: var(--navy); }
+    .legal-nav { display: none; gap: 2px; margin-left: 12px; }
+    .legal-nav a { padding: 8px 12px; border-radius: 9px; color: rgba(255, 255, 255, .78); font-size: 14px; font-weight: 600; text-decoration: none; }
+    .legal-nav a:hover, .legal-nav a[aria-current="page"] { color: #fff; background: rgba(255, 255, 255, .08); }
+    @media (min-width: 720px) { .legal-nav { display: flex; } }
+    .topbar .btn-gold { min-height: 38px; padding: 0 14px; border-radius: 11px; font-size: 13.5px; }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the page</a>
+  <header class="topbar">
+    <div class="wrap topbar-inner" style="width: min(760px, calc(100% - 32px));">
+      <a class="brand" href="./" aria-label="Chainmates, play today's puzzle">
+        <svg class="brand-mark" viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#102b43" /><path d="M8.5 22.5 15.5 10.5 23.5 19.5" fill="none" stroke="#dbe5ee" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /><circle cx="8.5" cy="22.5" r="3.6" fill="#f6b73c" /><circle cx="15.5" cy="10.5" r="3.2" fill="#fff" /><circle cx="23.5" cy="19.5" r="3.6" fill="#f6b73c" /></svg>
+        <span class="brand-text"><span class="brand-title">Chain<span class="brand-accent">mates</span></span></span>
+      </a>
+      <nav class="legal-nav" aria-label="Legal and help">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="support.html" aria-current="page">Support</a>
+      </nav>
+      <a class="btn btn-gold" href="./">Play today</a>
+    </div>
+  </header>
+
+  <main class="lg-main" id="main">
+    <article class="lg">
+      <h1>Support</h1>
+      <p class="lg-meta">Help for the Chainmates website</p>
+
+      <div class="lg-box">
+        <h2>Contact us</h2>
+        <p>Found a bug or a wrong link? Open an issue at <a href="https://github.com/cev64/handoff/issues" rel="noopener">github.com/cev64/handoff/issues</a>. Say which puzzle number, what you guessed and what you expected. A screenshot helps. Chainmates is run by one person, so replies can take a few days.</p>
+        <a class="btn btn-gold lg-btn" href="https://github.com/cev64/handoff/issues" rel="noopener">Report a problem</a>
+      </div>
+
+      <h2>Frequently asked questions</h2>
+
+      <details>
+        <summary>How do I play?</summary>
+        <div>
+          <p>You get a Start player and a Finish player. Add players one at a time so that each one was a teammate of the player before. When your last player was a teammate of the Finish player, you&rsquo;ve solved it. Par is the fewest links possible. You have three downs: a guess that wasn&rsquo;t a teammate is an incompletion and costs one. Undo is free, and a hint costs a down. The <a href="./">game</a> has a How to play button (the question mark) at the top.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>What counts as teammates?</summary>
+        <div>
+          <p>Two players are teammates if they both appeared in at least one game for the same team in the same season, regular season or playoffs. Being on the same team in different seasons does not count. The data covers 2002 onward, so a player whose whole career ended before 2002 is not in the game.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>When does the new puzzle come out?</summary>
+        <div>
+          <p>Every day at midnight Eastern Time. The results screen shows a countdown to the next one.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>A link I know is real was marked as an incompletion.</summary>
+        <div>
+          <p>The data counts players who actually appeared in a game for the team that season. A player who was only on the practice squad, or on the roster but never played, does not count. If you are sure two players appeared for the same team in the same season, please <a href="https://github.com/cev64/handoff/issues" rel="noopener">report it</a> with both names and the season.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Can I play old puzzles?</summary>
+        <div>
+          <p>Yes. Open the Archive (the calendar button) and pick any earlier puzzle. Archive games are practice: they are saved separately and don&rsquo;t change your statistics or streaks. Future puzzles stay locked until their day.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>My streak or progress disappeared.</summary>
+        <div>
+          <p>Everything is saved only in your browser on this device. Clearing site data, using a private window, or switching to a different browser or device starts fresh. There are no accounts, so we can&rsquo;t restore it.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Is it free? Does it track me?</summary>
+        <div>
+          <p>Yes, it&rsquo;s free. There are no ads, no analytics and no accounts. See the <a href="privacy.html">Privacy Policy</a>.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Is Chainmates affiliated with the NFL?</summary>
+        <div>
+          <p>No. It is an unofficial fan game, not affiliated with or endorsed by the NFL, the NFLPA or any team. Player data comes from <a href="https://github.com/nflverse" rel="noopener">nflverse</a> (CC-BY 4.0).</p>
+        </div>
+      </details>
+
+      <h2>More</h2>
+      <p><a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Service</a> · <a href="./">Back to Chainmates</a></p>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <p class="footer-links"><a href="./">Play</a><span aria-hidden="true">·</span><a href="privacy.html">Privacy</a><span aria-hidden="true">·</span><a href="terms.html">Terms</a><span aria-hidden="true">·</span><a href="support.html">Support</a></p>
+      <p>Unofficial fan game. Not affiliated with or endorsed by the NFL, NFLPA, or any team.</p>
+      <p><a href="https://github.com/nflverse" rel="noopener">Player data from nflverse (CC-BY 4.0)</a></p>
+    </div>
+  </footer>
+</body>
+</html>

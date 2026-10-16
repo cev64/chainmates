@@ -1,0 +1,15 @@
+{
+  "name": "Chainmates",
+  "short_name": "Chainmates",
+  "description": "A daily teammate-chain puzzle: connect two players through teammates.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#071827",
+  "background_color": "#071827",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
