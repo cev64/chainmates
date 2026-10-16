@@ -10,6 +10,8 @@ const puzzles = JSON.parse(fs.readFileSync(require('path').join(__dirname, '../.
 const idx = H.buildIndex(players);
 const pz = H.puzzleForDate(puzzles, H.easternDate(NOW));
 const name = (id) => H.player(idx, id).name;
+// what the stored optimal chain scores (Birdie now that par = fewest links + 1), straight from the core
+const optimalLabel = H.score(Object.assign(H.newGame(pz), { chain: pz.chain.slice(), status: 'won' })).label;
 // a famous player who never played with the start player (and isn't the finish)
 const miss = players.players.map((r) => r[0]).find((id) => id !== pz.start && id !== pz.end && !pz.chain.includes(id) && !H.areTeammates(idx, pz.start, id));
 let failures = 0;
@@ -87,7 +89,7 @@ async function run(b, { label, width, height, scheme, mobile, full }) {
     await p.click('#hintOk');
     await p.waitForTimeout(300);
     const hint = await p.locator('#hintPill').innerText();
-    check(/Hint: try the/i.test(hint), `${label}: hint shown "${hint.replace(/\n/g, ' ')}"`);
+    check(/^Hint\. /.test(hint) && (await p.locator('#hintPill .club').count()) === 1, `${label}: hint shown "${hint.replace(/\n/g, ' ')}"`);
     check((await p.locator('.down.used').count()) === 1, `${label}: hint cost a down`);
     await p.waitForTimeout(3500);
   }
@@ -121,10 +123,10 @@ async function run(b, { label, width, height, scheme, mobile, full }) {
   if (full) { await p.waitForTimeout(160); await shot('f5-sheet-rising'); }
   await p.waitForTimeout(1900);
   const sheetText = await p.locator('#sheet').innerText();
-  check(/^par$/i.test((await p.locator('.score-big').innerText()).trim()), `${label}: solved sheet shows Par`);
+  check((await p.locator('.score-big').innerText()).trim() === optimalLabel, `${label}: solved sheet shows ${optimalLabel}`);
   check(sheetText.includes(`${pz.optimal.toLocaleString('en-US')} optimal chains exist`), `${label}: optimal count shown`);
   const share = await p.locator('#sharePreview').innerText();
-  check(share.startsWith('Chainmates #' + pz.n) && share.includes('cev64.github.io/handoff/#' + pz.n), `${label}: share text ok`);
+  check(share.startsWith('Chainmates #' + pz.n) && share.includes('cev64.github.io/handoff/#' + pz.n) && share.includes(optimalLabel === 'Par' ? '\u26f3' : optimalLabel), `${label}: share text ok`);
   await shot('3-results');
   await p.click('#btnCopy');
   await p.waitForTimeout(300);

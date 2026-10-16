@@ -222,8 +222,9 @@
     const c = hintCopy(h, n, len);
     let i = 0;
     const words = (txt) => txt.split(/(\s+)/).map((w) => (/^\s*$/.test(w) ? w : '<span class="hw" style="--w:' + (i++) + '">' + esc(w) + '</span>')).join('');
+    const before = words(c.before);
     const team = '<span class="hw hw-team" style="--w:' + (i++) + '">' + chip(h.team, h.season) + '<b>' + esc(H.teamLabel(index, h.team, h.season)) + '</b></span>';
-    return words(c.before) + team + words(c.after);
+    return before + team + words(c.after);
   }
 
   /* ------------------------------------------------------------ views (View Transitions, crossfade fallback) */
@@ -972,8 +973,8 @@
     // Zero counts are left out: "3 links · Par 3" reads better than "· 0 incompletions · 0 hints".
     const sub = [plural(sc.links, 'link') + ' · Par ' + pz.par, won && sc.links > best ? 'shortest ' + best : '', st.inc ? plural(st.inc, S.miss) : '', st.hints ? plural(st.hints, 'hint') : ''].filter(Boolean).join(' · ');
     const headline = !won ? esc(S.lost)
-      : sc.over < 0 ? sc.label + '! The shortest chain there is.'
-      : sc.over === 0 ? (best < pz.par ? 'Solved at par. The birdie was ' + plural(best, 'link') + '.' : 'Right on par, the shortest chain there is.')
+      : sc.over < 0 ? cap(underText(sc.over)) + '. The shortest chain there is.'
+      : sc.over === 0 ? (best < pz.par ? 'Solved at par, one link off a birdie.' : 'Right on par, the shortest chain there is.')
       : 'Solved, ' + sc.over + ' over par';
     let sec = 0;
     const secOpen = (id) => '<section class="sheet-sec" style="--i:' + (sec++) + '" aria-labelledby="' + id + '">';
@@ -1109,7 +1110,7 @@
     return '<p class="lede">' + esc(S.tagline) + ' A new puzzle every day at midnight Eastern.</p>' +
       '<ul class="rules">' +
         '<li style="--i:0"><span class="runin">The chain.</span>You get a Start and a Finish player. Add players one at a time; each must have been a <strong>teammate</strong> of the one before (' + esc(S.rule || 'same team, same season') + '). Reach a teammate of the Finish player and you\'ve solved it.</li>' +
-        '<li style="--i:1"><span class="runin">Par.</span>The fewest links possible, plus one to spare. Find the shortest chain for a <strong>birdie</strong>; every link over par is +1.</li>' +
+        '<li style="--i:1"><span class="runin">Par.</span>The fewest links possible, plus one to spare. Find the shortest chain for a <strong>birdie</strong>; every link over par is +1. Par or better keeps your bogey-free streak alive.</li>' +
         '<li style="--i:2"><span class="runin">' + esc(cap(LIVES)) + '.</span>You have ' + H.DOWNS + '. A guess that wasn\'t a teammate is an ' + esc(S.miss) + ' and costs one. Lose them all and it\'s a ' + esc(S.lost.toLowerCase()) + '.</li>' +
         '<li style="--i:3"><span class="runin">Help.</span>Undo is free. A hint reveals a team and a position for your next link, and costs a ' + esc(LIFE) + '.</li>' +
       '</ul>' +

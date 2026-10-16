@@ -17,6 +17,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') +
   await p.waitForSelector('#guess', { state: 'visible' });
   await p.evaluate(() => { const d = document.querySelector('dialog[open]'); if (d) d.close(); });
   const pz = H.puzzleForDate(zj, '2026-10-16');
+  const optimalLabel = H.score(Object.assign(H.newGame(pz), { chain: pz.chain.slice(), status: 'won' })).label;   // "Birdie" (par = fewest + 1)
   const downs = () => p.evaluate(() => JSON.parse(localStorage.getItem('chainmates.nfl.daily.5') || '{}').downs);
   // 1) Enter on an ambiguous partial name must not guess
   await p.fill('#guess', 'mar'); await p.clock.runFor(300); await p.keyboard.press('Enter'); await p.clock.runFor(300);
@@ -45,7 +46,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') +
   await p.goto('http://localhost:8765/#5'); await p.waitForSelector('#resultStrip:not([hidden])', { timeout: 5000 }).catch(() => {});
   await p.evaluate(() => { const d = document.querySelector('dialog[open]'); if (d) d.close(); });
   const strip = await p.textContent('#resultStrip').catch(() => '');
-  check(/Par/.test(strip) && /Replay as practice/.test(strip), 'past daily shows its result + Replay (' + strip.replace(/\s+/g, ' ').trim() + ')');
+  check(strip.includes(optimalLabel) && /Replay as practice/.test(strip), 'past daily shows its result (' + optimalLabel + ') + Replay (' + strip.replace(/\s+/g, ' ').trim() + ')');
   await p.screenshot({ path: SHOTS + '/past-daily.png' });
   await p.click('text=Replay as practice'); await p.clock.runFor(800);
   const chainLen = await p.evaluate(() => document.querySelectorAll('#chain .chain-card, #chain li').length);
