@@ -935,7 +935,7 @@
     const pct = stats.played ? Math.round((stats.won / stats.played) * 100) : 0;
     // The par streak counts par or better: in golf terms, bogey-free.
     const t = [[stats.played, 'Played'], [pct, 'Win %'], [ds.cur, 'Streak'], [ds.max, 'Best streak'],
-      [ds.parCur, 'Bogey-free streak', 'Days in a row at par or better'], [ds.parMax, 'Best bogey-free', 'Longest run at par or better']];
+      [ds.parCur, '<span class="nw">Bogey-free</span> streak', 'Days in a row at par or better'], [ds.parMax, 'Best <span class="nw">bogey-free</span>', 'Longest run at par or better']];
     return '<div class="tiles">' + t.map((x, i) => '<div class="tile" style="--i:' + i + '"' + (x[2] ? ' title="' + esc(x[2]) + '"' : '') + '><b data-count="' + x[0] + '">' + x[0] + '</b><small>' + x[1] +
       (x[2] ? '<span class="sr-only"> (' + esc(x[2].toLowerCase()) + ')</span>' : '') + '</small></div>').join('') + '</div>';
   }
