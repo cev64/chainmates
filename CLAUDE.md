@@ -10,6 +10,7 @@ Read these before changing anything:
 ## Commands
 
 - Tests: `npm test` (core, with the real-data checks) and `python3 tools/test_data.py` (data sanity).
+- Browser checks: `tools/dev.sh`, then the Playwright scripts in `tests/e2e/`. See `tests/e2e/README.md`; they pin the clock to puzzle No. 5.
 - Rebuild data: `pip install -r tools/requirements.txt && python3 tools/build_data.py`.
   - `--offline` uses the `.cache/` downloads.
   - `--rebuild --epoch YYYY-MM-DD` renumbers every puzzle. Only do this before launch.
