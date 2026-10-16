@@ -11,3 +11,5 @@ CHROMIUM_PATH=/opt/pw-browsers/chromium node tests/e2e/ux.js /tmp/shots
 ```
 
 Screenshots are written to the folder you pass as the argument.
+
+To point them at another server, set `BASE_URL`, for example `BASE_URL=http://localhost:8768/`. New games start in hard mode (the core's `DEFAULT_MODE`), so the stored optimal chain scores an Eagle.

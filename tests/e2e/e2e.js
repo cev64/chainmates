@@ -3,14 +3,14 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const H = require('../../core/handoff-core.js');
 const OUT = process.argv[2];
-const BASE = 'http://localhost:8765/';
+const BASE = process.env.BASE_URL || 'http://localhost:8765/';
 const NOW = new Date('2026-10-16T16:00:00Z');
 const players = JSON.parse(fs.readFileSync(require('path').join(__dirname, '../../data/nfl/') + 'players.json'));
 const puzzles = JSON.parse(fs.readFileSync(require('path').join(__dirname, '../../data/nfl/') + 'puzzles.json'));
 const idx = H.buildIndex(players);
 const pz = H.puzzleForDate(puzzles, H.easternDate(NOW));
 const name = (id) => H.player(idx, id).name;
-// what the stored optimal chain scores (Birdie now that par = fewest links + 1), straight from the core
+// what the stored optimal chain scores in the default mode (hard: par = fewest + 2, so an Eagle), straight from the core
 const optimalLabel = H.score(Object.assign(H.newGame(pz), { chain: pz.chain.slice(), status: 'won' })).label;
 // a famous player who never played with the start player (and isn't the finish)
 const miss = players.players.map((r) => r[0]).find((id) => id !== pz.start && id !== pz.end && !pz.chain.includes(id) && !H.areTeammates(idx, pz.start, id));
@@ -46,6 +46,9 @@ async function run(b, { label, width, height, scheme, mobile, full }) {
   await p.click('#dlgHelp [data-close].btn');
   await p.waitForTimeout(600);
   check(await p.locator('#heroInner').innerText().then((t) => t.includes('No. ' + pz.n)), `${label}: hero shows puzzle #${pz.n}`);
+  check((await p.evaluate(() => window.__chainmates.difficulty)) === H.DEFAULT_MODE, `${label}: new game starts in ${H.DEFAULT_MODE} mode`);
+  check((await p.locator('.pb-par').innerText()).trim() === 'Par ' + H.parFor(pz, H.DEFAULT_MODE), `${label}: par badge shows the mode's par`);
+  check((await p.locator('#heroInner .pcard .club, #chain .node .club').count()) === 0, `${label}: hard mode shows no player teams`);
   await shot('1-fresh');
 
   if (full) {
@@ -126,6 +129,7 @@ async function run(b, { label, width, height, scheme, mobile, full }) {
   check((await p.locator('.score-big').innerText()).trim() === optimalLabel, `${label}: solved sheet shows ${optimalLabel}`);
   check(sheetText.includes(`${pz.optimal.toLocaleString('en-US')} optimal chains exist`), `${label}: optimal count shown`);
   const share = await p.locator('#sharePreview').innerText();
+  check(share.split('\n')[0].endsWith(' · Hard'), `${label}: hard share line "${share.split('\n')[0]}"`);
   check(share.startsWith('Chainmates #' + pz.n) && share.includes('cev64.github.io/handoff/#' + pz.n) && share.includes(optimalLabel === 'Par' ? '\u26f3' : optimalLabel), `${label}: share text ok`);
   await shot('3-results');
   await p.click('#btnCopy');

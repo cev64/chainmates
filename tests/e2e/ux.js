@@ -6,6 +6,7 @@ const pj = JSON.parse(fs.readFileSync(require('path').join(__dirname, '../../dat
 const zj = JSON.parse(fs.readFileSync(require('path').join(__dirname, '../../data/nfl/') + 'puzzles.json'));
 const idx = H.buildIndex(pj);
 const SHOTS = process.argv[2];
+const BASE = process.env.BASE_URL || 'http://localhost:8765/';
 let fails = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fails++; };
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -13,11 +14,11 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') +
   const p = await ctx.newPage();
   const errs = []; p.on('pageerror', e => errs.push(String(e))); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   await p.clock.install({ time: new Date('2026-10-16T16:00:00Z') });
-  await p.goto('http://localhost:8765/');
+  await p.goto(BASE);
   await p.waitForSelector('#guess', { state: 'visible' });
   await p.evaluate(() => { const d = document.querySelector('dialog[open]'); if (d) d.close(); });
   const pz = H.puzzleForDate(zj, '2026-10-16');
-  const optimalLabel = H.score(Object.assign(H.newGame(pz), { chain: pz.chain.slice(), status: 'won' })).label;   // "Birdie" (par = fewest + 1)
+  const optimalLabel = H.score(Object.assign(H.newGame(pz), { chain: pz.chain.slice(), status: 'won' })).label;   // "Eagle" (hard is the default: par = fewest + 2)
   const downs = () => p.evaluate(() => JSON.parse(localStorage.getItem('chainmates.nfl.daily.5') || '{}').downs);
   // 1) Enter on an ambiguous partial name must not guess
   await p.fill('#guess', 'mar'); await p.clock.runFor(300); await p.keyboard.press('Enter'); await p.clock.runFor(300);
@@ -43,7 +44,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') +
   check(!/0 hints|0 incompletions/.test(sub), 'zero counts hidden in sheet');
   // 4) Next day: archive -> #5 shows the daily result with Replay
   await p.clock.setSystemTime(new Date('2026-10-17T16:00:00Z'));
-  await p.goto('http://localhost:8765/#5'); await p.waitForSelector('#resultStrip:not([hidden])', { timeout: 5000 }).catch(() => {});
+  await p.goto(BASE + '#5'); await p.waitForSelector('#resultStrip:not([hidden])', { timeout: 5000 }).catch(() => {});
   await p.evaluate(() => { const d = document.querySelector('dialog[open]'); if (d) d.close(); });
   const strip = await p.textContent('#resultStrip').catch(() => '');
   check(strip.includes(optimalLabel) && /Replay as practice/.test(strip), 'past daily shows its result (' + optimalLabel + ') + Replay (' + strip.replace(/\s+/g, ' ').trim() + ')');

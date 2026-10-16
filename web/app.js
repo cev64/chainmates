@@ -494,8 +494,9 @@
     strip.hidden = playing;
     if (!playing) {
       const tier = tierOf(sc);
-      const line = (!won ? plural(st.inc, S.miss) + ' · Par ' + st.par
-        : 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par + (sc.over < 0 ? ' · ' + underText(sc.over) : sc.links > sc.best ? ' · shortest is ' + sc.best : '')) + ' · ' + MODE_NAME[sc.mode];
+      const parOn = 'Par ' + st.par + ' on ' + sc.mode;
+      const line = !won ? plural(st.inc, S.miss) + ' · ' + parOn
+        : 'Solved in ' + plural(sc.links, 'link') + ' · ' + parOn + (sc.over < 0 ? ' · ' + underText(sc.over) : sc.links > sc.best ? ' · shortest is ' + sc.best : '');
       strip.innerHTML = '<div><div class="rs-score is-' + tier + '">' + esc(won ? sc.label : S.lost) + '</div>' +
         '<small>' + esc(line) + '</small></div>' +
         '<span class="rs-actions">' +
@@ -1178,7 +1179,7 @@
     $('#statsBody').innerHTML =
       '<section class="card page-card" aria-labelledby="sumTitle"><h2 id="sumTitle">Summary</h2>' + statTiles(stats) + '</section>' +
       '<section class="card page-card" aria-labelledby="histTitle"><h2 id="histTitle">Strokes vs par <small>' + plural(total, 'daily game') + '</small></h2>' +
-        (stats.hist['-2'] ? '<p class="eagle-note"><b>' + plural(stats.hist['-2'], 'eagle') + '</b> on hard: the shortest chain with no teams to go on.</p>' : '') +
+        (stats.hist['-2'] ? '<p class="eagle-note"><b>' + plural(stats.hist['-2'], 'eagle') + '</b>: the shortest chain, found on hard.</p>' : '') +
         (total ? '<ol class="hist">' + buckets.map((b, i) => {
           const c = stats.hist[b[0]] || 0, on = mark ? mark === b[0] : c > 0 && c === max;
           return '<li class="' + (b[0] === '-2' ? 'is-eagle ' : b[0] === '-1' ? 'is-birdie ' : b[0] === '0' ? 'is-par ' : '') + (on ? 'on' : '') + '"><span class="h-lab">' + b[1] + (b[0] === '3' ? '<span class="sr-only"> or more</span>' : b[0] === '-2' ? '<span class="sr-only"> or better</span>' : '') + '</span>' +
@@ -1250,8 +1251,9 @@
   }
   function helpHTML() {
     const off = (k) => spareWord(H.MODES[k].parOffset);
-    return todayBlockHTML() +
-      '<p class="lede">' + esc(S.tagline) + ' A new puzzle every day at midnight Eastern.</p>' +
+    const today = todayBlockHTML();   // it already opens with the tagline
+    return today +
+      '<p class="lede">' + (today ? '' : esc(S.tagline) + ' ') + 'A new puzzle every day at midnight Eastern.</p>' +
       '<ul class="rules">' +
         '<li style="--i:0"><span class="runin">The chain.</span>You get a Start and a Finish player. Add players one at a time; each must have been a <strong>teammate</strong> of the one before (' + esc(S.rule || 'same team, same season') + '). Reach a teammate of the Finish player and you\'ve solved it.</li>' +
         '<li style="--i:1"><span class="runin">Par.</span>The fewest links possible, plus some to spare. One link under par is a <strong>birdie</strong>, two under is an <strong>eagle</strong>, and every link over par is +1. Par or better keeps your bogey-free streak alive.</li>' +
