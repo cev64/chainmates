@@ -18,6 +18,15 @@ Read these before changing anything:
 
 ## Conventions
 
+- **No vibe-coded tells.** Avoid:
+  - purple/indigo palettes
+  - coloured left-border accent bars on rows or cards
+  - gradient text, glow shadows, decorative glass/blur, gradient blobs
+  - emoji in UI chrome
+  - pills and tiny tracked-uppercase labels everywhere
+  - nested cards
+
+  Aim for an editorial puzzle-page feel: strong type, hairline rules, one sparing accent.
 - **Motion is a feature.** Every state change animates: links spring in, connectors draw, undo retracts, sheets drag. Animate with transform/opacity only, keep it at 60fps, and give everything a `prefers-reduced-motion` fallback.
 
 - **All game rules live in `core/handoff-core.js`.** Clients never re-implement validation, scoring, share text, streaks or date mapping. Change the core, then update `core/test/vectors.json` and the tests.

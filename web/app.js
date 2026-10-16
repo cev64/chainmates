@@ -1,6 +1,6 @@
 /* Chainmates web client. Vanilla JS, no build step.
  * Every game rule (guessing, downs, hints, undo, scoring, dates, search, share text, stats) comes from
- * core/handoff-core.js (globalThis.HandoffCore). This file only renders, routes and stores. */
+ * core/handoff-core.js (globalThis.HandoffCore). This file only renders, routes, animates and stores. */
 (function () {
   'use strict';
 
@@ -9,7 +9,7 @@
 
   /* ------------------------------------------------------------ config */
   const CONFIG = {
-    shareUrl: 'cev64.github.io/handoff/', // base URL in the share text; "#n" is appended by the core
+    shareUrl: 'cev64.github.io/handoff/', // base URL in the share text; the core appends "#n"
     searchLimit: 8,
     debounceMs: 100,
     toastMs: 3400,
@@ -26,30 +26,47 @@
   })();
   const S = SPORTS[sportKey];
   const KEY = (k) => 'chainmates.' + sportKey + '.' + k;
+  const LIFE = S.life || 'down', LIVES = S.lives || 'downs';
+  document.documentElement.setAttribute('data-sport', sportKey);
+  if (S.texture) document.documentElement.setAttribute('data-texture', S.texture);
 
-  /* ------------------------------------------------------------ tiny helpers */
+  /* ------------------------------------------------------------ helpers */
   const $ = (sel, root) => (root || document).querySelector(sel);
   const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ESC[c]);
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many || one + 's');
+  const downsLeft = (n) => plural(n, LIFE, LIVES) + ' left';
   const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)');
   const PHONE = window.matchMedia('(max-width: 760px)');
   const COARSE = window.matchMedia('(pointer: coarse)');
+  const reflow = (el) => void el.offsetWidth;
+  /** A motion token from app.css, in ms (reduced motion sets them to ~0, so every JS delay collapses too). */
+  function tok(name) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const n = parseFloat(v);
+    if (!isFinite(n)) return 0;
+    return /ms$/.test(v) ? n : /s$/.test(v) ? n * 1000 : n;
+  }
 
   const store = {
-    get(k, def) {
-      try { const v = localStorage.getItem(k); return v == null ? def : JSON.parse(v); } catch (e) { return def; }
-    },
+    get(k, def) { try { const v = localStorage.getItem(k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode / full */ } },
     raw(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     rawSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignore */ } },
   };
 
-  function haptic(ms) {
+  const HAPTIC = { link: 8, solve: [10, 40, 10, 40, 30], miss: [28, 40, 28], tap: 5 };
+  function haptic(kind) {
     if (!COARSE.matches || !navigator.vibrate) return;
-    try { navigator.vibrate(ms); } catch (e) { /* not allowed yet */ }
+    try { navigator.vibrate(HAPTIC[kind] || kind); } catch (e) { /* not allowed yet */ }
   }
+
+  const LINK_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><g transform="rotate(-35 12 12)"><rect x="2.5" y="8" width="11" height="8" rx="4"/><rect x="10.5" y="8" width="11" height="8" rx="4"/></g></svg>';
+  const X_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  const BULB_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"/></svg>';
+  const CLOSE_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  const ART_SVG = '<svg class="status-art" viewBox="0 0 80 40" width="80" height="40" aria-hidden="true" fill="none" stroke-width="5"><rect class="lk-a" x="6" y="8" width="38" height="24" rx="12" stroke="var(--accent)"/><rect class="lk-b" x="36" y="8" width="38" height="24" rx="12" stroke="var(--gold)"/></svg>';
 
   /* ------------------------------------------------------------ theme */
   const btnTheme = $('#btnTheme');
@@ -65,38 +82,39 @@
   btnTheme.addEventListener('click', () => {
     const next = { auto: 'light', light: 'dark', dark: 'auto' }[currentTheme()];
     store.rawSet(THEME_KEY, next === 'auto' ? null : next);
-    applyTheme(next);
-    toast(next === 'auto' ? 'Theme follows your device' : cap(next) + ' theme', 'warn');
+    const swap = () => applyTheme(next);
+    if (document.startViewTransition && !REDUCE.matches) document.startViewTransition(swap); else swap();
+    toast(next === 'auto' ? 'Theme follows your device' : cap(next) + ' theme');
   });
   applyTheme(currentTheme());
 
   /* ------------------------------------------------------------ static copy from the registry */
-  function brandHTML() {
-    const t = S.title || 'Chainmates';
-    const want = S.accent || 'mates';
-    const a = t.length > want.length && t.endsWith(want) ? want : '';
-    return esc(t.slice(0, t.length - a.length)) + (a ? '<span class="brand-accent">' + esc(a) + '</span>' : '');
-  }
-  $('#brandTitle').innerHTML = brandHTML();
-  $('#brandMode').textContent = S.mode || '';
-  $('#brandMode').hidden = !S.mode;
-  $('#brand').setAttribute('aria-label', (S.title || 'Chainmates') + (S.mode ? ' ' + S.mode : '') + ", today's puzzle");
-  if (S.disclaimer) $('#footDisclaimer').textContent = S.disclaimer;
-  if (S.attribution) { const a = $('#footAttribution'); a.textContent = S.attribution.text; a.href = S.attribution.href; }
-  document.title = (S.title || 'Chainmates') + (S.mode ? ' ' + S.mode : '') + ' · Daily teammate chain';
-  if (sportKeys.length > 1) {
-    const box = $('#sportPick');
-    box.hidden = false;
-    box.innerHTML = '<label class="sr-only" for="sportSel">Sport</label><select id="sportSel">' +
-      sportKeys.map((k) => '<option value="' + esc(k) + '"' + (k === sportKey ? ' selected' : '') + '>' + esc((SPORTS[k].mode || SPORTS[k].title)) + '</option>').join('') + '</select>';
-    $('#sportSel').addEventListener('change', (e) => { location.search = '?sport=' + encodeURIComponent(e.target.value); });
-  }
+  (function brand() {
+    const t = S.title || 'Chainmates', want = S.accent || 'mates';
+    const a = t.length > want.length && t.toLowerCase().endsWith(want) ? want : '';
+    const head = t.slice(0, t.length - a.length).toLowerCase();
+    $('#brandTitle').innerHTML = esc(head) + (a ? '<span class="brand-accent">' + esc(a) + '</span>' : '');
+    $('#brandMode').textContent = S.mode || '';
+    $('#brandMode').hidden = !S.mode;
+    $('#brand').setAttribute('aria-label', t + (S.mode ? ' ' + S.mode : '') + ", today's puzzle");
+    if (S.disclaimer) $('#footDisclaimer').textContent = S.disclaimer;
+    if (S.attribution) { const el = $('#footAttribution'); el.textContent = S.attribution.text; el.href = S.attribution.href; }
+    document.title = t + (S.mode ? ' ' + S.mode : '') + ' · Daily teammate chain';
+    if (sportKeys.length > 1) {
+      const box = $('#sportPick');
+      box.hidden = false;
+      box.innerHTML = '<label class="sr-only" for="sportSel">Mode</label><select id="sportSel">' +
+        sportKeys.map((k) => '<option value="' + esc(k) + '"' + (k === sportKey ? ' selected' : '') + '>' + esc(SPORTS[k].mode || SPORTS[k].title) + '</option>').join('') + '</select>';
+      $('#sportSel').addEventListener('change', (e) => { location.search = '?sport=' + encodeURIComponent(e.target.value); });
+    }
+  })();
 
   /* ------------------------------------------------------------ data */
   let index = null, playersJson = null, puzzlesJson = null, TEAMS = {};
   let today = '', todayN = 0;
-  let game = null;         // { puzzle, mode: 'daily'|'practice', key, state }
+  let game = null;          // { puzzle, mode: 'daily'|'practice', key, state, shownDowns }
   let currentView = null;
+  let busy = false;         // an animation that must finish before the next move (undo retract, solve lock-up)
 
   function fetchJSON(url) {
     return fetch(url, { cache: 'no-cache' }).then((r) => {
@@ -104,12 +122,10 @@
       return r.json();
     });
   }
-
   function refreshToday() {
     today = H.easternDate();
     todayN = puzzlesJson ? H.puzzleNumberForDate(puzzlesJson, today) : 0;
   }
-
   function load() {
     showStatus('loading');
     Promise.all([fetchJSON(S.data + 'players.json'), fetchJSON(S.data + 'puzzles.json')])
@@ -133,8 +149,9 @@
     const dt = new Date(Date.UTC(y, m - 1, d));
     return DAYS[dt.getUTCDay()] + ', ' + MONTHS[m - 1] + ' ' + d + (long ? ', ' + y : '');
   }
-  function years(p) { return p.first == null ? '' : p.first === p.last ? String(p.first) : p.first + '–' + p.last; }
-  function metaLine(p) { return [p.pos, years(p)].filter(Boolean).join(' · '); }
+  const years = (p) => (p.first == null ? '' : p.first === p.last ? String(p.first) : p.first + '–' + p.last);
+  const metaLine = (p) => [p.pos, years(p)].filter(Boolean).join(' · ');
+  const seasonsRange = () => (playersJson && playersJson.seasons ? playersJson.seasons.join('–') : '');
 
   function inkFor(hex) {
     const n = parseInt(String(hex).replace('#', ''), 16);
@@ -142,7 +159,7 @@
     const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
     return lum > 0.62 ? '#0b1726' : '#ffffff';
   }
-  /** ClubChip: the team code on its primary colour, a thin secondary stripe, ink picked by luminance. */
+  /** ClubChip: the team code on its primary colour with a thin secondary stripe; ink picked by luminance. */
   function chip(team, season) {
     const t = TEAMS[team] || {};
     const c1 = t.c1 || '#8A94A1', c2 = t.c2 || c1;
@@ -152,8 +169,7 @@
   /** Most recent distinct franchises a player played for, newest first (display only). */
   function recentTeams(p, k) {
     const seen = new Set(), out = [];
-    const st = p.stints.slice().sort((a, b) => b.season - a.season);
-    for (const s of st) {
+    for (const s of p.stints.slice().sort((a, b) => b.season - a.season)) {
       const f = (TEAMS[s.team] && TEAMS[s.team].franchise) || s.team;
       if (seen.has(f)) continue;
       seen.add(f); out.push(s);
@@ -164,43 +180,51 @@
   const chipsFor = (p, k) => recentTeams(p, k).map((s) => chip(s.team, s.season)).join('');
   const posAbbr = (p) => esc((p.pos || '').slice(0, 3) || '•');
 
-  /* ------------------------------------------------------------ views */
+  /* ------------------------------------------------------------ views (View Transitions, crossfade fallback) */
   const views = { status: $('#viewStatus'), game: $('#viewGame'), archive: $('#viewArchive'), stats: $('#viewStats') };
   function showView(name) {
-    if (currentView !== name) {
+    const apply = () => {
       Object.keys(views).forEach((k) => { views[k].hidden = k !== name; });
-      currentView = name;
-    }
-    $('#btnArchive').toggleAttribute('aria-current', false);
-    $('#btnStats').toggleAttribute('aria-current', false);
-    if (name === 'archive') $('#btnArchive').setAttribute('aria-current', 'page');
-    if (name === 'stats') $('#btnStats').setAttribute('aria-current', 'page');
+      $('#btnArchive').toggleAttribute('aria-current', false);
+      $('#btnStats').toggleAttribute('aria-current', false);
+      if (name === 'archive') $('#btnArchive').setAttribute('aria-current', 'page');
+      if (name === 'stats') $('#btnStats').setAttribute('aria-current', 'page');
+    };
+    const from = currentView;
+    currentView = name;
+    if (from === name || from === null) return apply();
+    if (document.startViewTransition && !REDUCE.matches) { document.startViewTransition(apply); return; }
+    apply();
+    const v = views[name];
+    v.classList.remove('view-in'); reflow(v); v.classList.add('view-in');
   }
   function setKicker(html) { $('#brandKicker').innerHTML = html; }
   const todayKicker = () => '<span class="k-word">Puzzle </span><b>#' + todayN + '</b>';
 
+  const skeletonHTML = $('#statusBody').innerHTML;
   function showStatus(kind, arg) {
-    const card = $('#statusCard');
+    const body = $('#statusBody');
     closeAC();
-    card.className = 'status-card' + (kind === 'error' ? ' error' : '');
+    views.status.setAttribute('aria-busy', String(kind === 'loading'));
     if (kind === 'loading') {
-      card.innerHTML = '<div class="spinner" aria-hidden="true"></div><strong>Loading today\'s puzzle…</strong><span>Fetching the player list.</span>';
-    } else if (kind === 'error') {
-      card.innerHTML = '<span class="status-big">Fumble</span><strong>We couldn\'t load the puzzle.</strong>' +
-        '<span>Check your connection and try again.</span>' + (arg && arg.message ? '<code>' + esc(arg.message) + '</code>' : '') +
-        '<button type="button" class="btn btn-primary" id="btnRetry">Try again</button>';
-      $('#btnRetry').addEventListener('click', load);
-    } else if (kind === 'future') {
-      const p = H.puzzleByNumber(puzzlesJson, arg);
-      card.innerHTML = '<span class="status-big">Not available yet</span><strong>Puzzle #' + esc(arg) + ' hasn\'t kicked off.</strong>' +
-        '<span>' + (p ? 'It unlocks ' + esc(fmtDate(p.date)) + ' at midnight Eastern.' : 'Check back later.') + '</span>' +
-        '<a class="btn btn-primary" href="#">Play today\'s puzzle</a>';
-    } else if (kind === 'notfound') {
-      card.innerHTML = '<span class="status-big">No such puzzle</span><strong>There is no puzzle #' + esc(arg) + '.</strong>' +
-        '<span>Pick one from the archive instead.</span><a class="btn btn-primary" href="#archive">Open the archive</a>';
-    } else if (kind === 'nopuzzle') {
-      card.innerHTML = '<span class="status-big">Bye week</span><strong>There\'s no puzzle for today.</strong>' +
-        '<span>New puzzles are on the way. Older ones are in the archive.</span><a class="btn btn-primary" href="#archive">Open the archive</a>';
+      body.innerHTML = skeletonHTML;
+    } else {
+      let inner = '';
+      if (kind === 'error') {
+        inner = '<span class="status-big">Chain snapped</span><strong>We couldn\'t load the puzzle.</strong><span>Check your connection and try again.</span>' +
+          (arg && arg.message ? '<code>' + esc(arg.message) + '</code>' : '') + '<button type="button" class="btn btn-accent" id="btnRetry">Try again</button>';
+      } else if (kind === 'future') {
+        const p = H.puzzleByNumber(puzzlesJson, arg);
+        inner = '<span class="status-big">Not available yet</span><strong>Puzzle #' + esc(arg) + ' is still locked.</strong>' +
+          '<span>' + (p ? 'It unlocks ' + esc(fmtDate(p.date)) + ' at midnight Eastern.' : 'Check back later.') + '</span><a class="btn btn-accent" href="#">Play today\'s puzzle</a>';
+      } else if (kind === 'notfound') {
+        inner = '<span class="status-big">No such puzzle</span><strong>There is no puzzle #' + esc(arg) + '.</strong><span>Pick one from the archive instead.</span><a class="btn btn-accent" href="#archive">Open the archive</a>';
+      } else if (kind === 'nopuzzle') {
+        inner = '<span class="status-big">Off day</span><strong>There\'s no puzzle for today.</strong><span>New puzzles are on the way. Older ones are in the archive.</span><a class="btn btn-accent" href="#archive">Open the archive</a>';
+      }
+      body.innerHTML = '<div class="wrap"><div class="status-card' + (kind === 'error' ? ' error' : '') + '">' + ART_SVG + inner + '</div></div>';
+      const r = $('#btnRetry');
+      if (r) r.addEventListener('click', load);
     }
     setKicker(todayN > 0 ? todayKicker() : 'Daily');
     showView('status');
@@ -215,7 +239,6 @@
     if (/^\d{1,6}$/.test(h)) return { view: 'game', n: parseInt(h, 10) };
     return { view: 'game', n: todayN };
   }
-
   function route() {
     if (!index) return;
     refreshToday();
@@ -228,9 +251,9 @@
     if (r.n > todayN) { showStatus('future', r.n); return; }   // never reveal a future puzzle
     const p = H.puzzleByNumber(puzzlesJson, r.n);
     if (!p) { showStatus(r.n === todayN ? 'nopuzzle' : 'notfound', r.n); return; }
-    const same = game && game.puzzle.n === p.n && game.mode === (p.n === todayN ? 'daily' : 'practice');
-    if (!same) startGame(p, p.n === todayN ? 'daily' : 'practice');
-    else { renderGame(); }
+    const mode = p.n === todayN ? 'daily' : 'practice';
+    const same = game && game.puzzle.n === p.n && game.mode === mode;
+    if (!same) startGame(p, mode); else renderGame();
     showView('game');
     if (!same) window.scrollTo(0, 0);
   }
@@ -238,9 +261,9 @@
 
   /* ------------------------------------------------------------ game state */
   function validState(st, p) {
-    return st && typeof st === 'object' && st.n === p.n && st.start === p.start && st.end === p.end && st.par === p.par &&
+    return !!st && typeof st === 'object' && st.n === p.n && st.start === p.start && st.end === p.end && st.par === p.par &&
       Array.isArray(st.chain) && st.chain[0] === p.start && st.chain.every((id) => !!H.player(index, id)) &&
-      ['playing', 'won', 'lost'].indexOf(st.status) >= 0 && Array.isArray(st.log) && st.hintAt && typeof st.hintAt === 'object';
+      ['playing', 'won', 'lost'].indexOf(st.status) >= 0 && Array.isArray(st.log) && !!st.hintAt && typeof st.hintAt === 'object';
   }
   const stateKey = (mode, n) => KEY((mode === 'daily' ? 'daily.' : 'practice.') + n);
 
@@ -248,14 +271,14 @@
     const key = stateKey(mode, p.n);
     let st = store.get(key, null);
     if (!validState(st, p)) st = H.newGame(p);
-    game = { puzzle: p, mode, key, state: st };
+    game = { puzzle: p, mode, key, state: st, shownDowns: st.downs };
+    busy = false;
     if (mode === 'daily' && st.status !== 'playing') recordDaily();
     clearGuess();
     renderHero();
     renderGame();
   }
-  function save() { store.set(game.key, game.state); }
-
+  const save = () => store.set(game.key, game.state);
   function loadStats() {
     const s = store.get(KEY('stats'), null);
     return s && s.v === 1 && s.hist && s.results ? s : H.newStats();
@@ -264,7 +287,6 @@
     if (!game || game.mode !== 'daily' || game.state.status === 'playing') return;
     store.set(KEY('stats'), H.recordResult(loadStats(), game.puzzle.n, game.state));
   }
-
   const lastId = () => game.state.chain[game.state.chain.length - 1];
 
   /* ------------------------------------------------------------ hero */
@@ -276,44 +298,47 @@
       '<span class="pcard-meta">' + esc(metaLine(p)) + '</span></div>';
   }
   function renderHero() {
-    const pz = game.puzzle;
+    const pz = game.puzzle, practice = game.mode === 'practice';
     const a = H.player(index, pz.start), b = H.player(index, pz.end);
-    const practice = game.mode === 'practice';
+    const hero = $('#hero');
     $('#heroInner').innerHTML =
       '<div class="hero-kicker">' +
         '<span class="kicker"><b>#' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + '</span>' +
-        (practice ? '<span class="pill pill-blue"><span class="pill-dot"></span>Practice</span>' : '<span class="pill pill-gold"><span class="pill-dot"></span>Daily</span>') +
+        (practice ? '<span class="pill pill-practice"><span class="pill-dot"></span>Practice</span>' : '<span class="pill pill-daily"><span class="pill-dot"></span>Daily</span>') +
+        (pz.theme ? '<span class="pill pill-theme">' + esc(pz.theme) + '</span>' : '') +
       '</div>' +
       '<h1 class="hero-title" id="heroTitle">' + esc(S.tagline || 'Connect two players through teammates.') + '</h1>' +
       '<div class="matchup">' +
         heroCard(a, 'Start', 'pcard-start') +
-        '<div class="matchup-arrow" aria-hidden="true"><span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>' +
+        '<div class="gap-link" aria-hidden="true"><svg class="dash" height="4"><line x1="0" y1="2" x2="100%" y2="2"/></svg><span class="knot">' + LINK_SVG + '</span></div>' +
         heroCard(b, 'Finish', 'pcard-end') +
       '</div>' +
       '<div class="hero-foot">' +
         '<span class="par-badge" aria-label="Par ' + pz.par + ' links">Par ' + pz.par + '</span>' +
-        (pz.theme ? '<span class="theme-label"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="m12 2.8 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 16.8l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg>' + esc(pz.theme) + '</span>' : '') +
-        (practice ? '<span class="hero-note">Archive replay · doesn\'t count toward stats</span>' : '<span class="hero-note">Fewest links possible: ' + pz.par + '</span>') +
+        '<span class="hero-note">' + (practice ? 'Archive replay · doesn\'t count toward stats' : 'Fewest links possible: ' + pz.par) + '</span>' +
       '</div>';
+    if (!hero.querySelector('.hero-edge')) hero.insertAdjacentHTML('beforeend', '<div class="hero-edge" aria-hidden="true"></div>');
+    hero.classList.remove('intro'); reflow(hero); hero.classList.add('intro');
     setKicker('<span class="k-word">' + (practice ? 'Practice ' : 'Puzzle ') + '</span><b>#' + pz.n + '</b>');
   }
 
   /* ------------------------------------------------------------ chain */
-  function connHTML(shared, cls) {
+  function railHTML(k) { return '<span class="rail" aria-hidden="true"><span class="rail-line"></span><span class="rail-knot" style="--k:' + k + '">' + LINK_SVG + '</span></span>'; }
+  function connHTML(shared, k, cls) {
     if (!shared || !shared.length) return '';
     const first = shared[0], more = shared.length - 1;
-    return '<div class="conn ' + (cls || '') + '">' + chip(first.team, first.season) +
-      '<span>Teammates on the <b>' + esc(H.teamLabel(index, first.team, first.season)) + '</b></span>' +
-      (more > 0 ? '<button type="button" class="more-btn" aria-expanded="false" data-more>+' + more + ' more</button>' +
-        '<div class="more-list" hidden>' + shared.slice(1).map((s) => '<span>' + chip(s.team, s.season) + esc(H.teamLabel(index, s.team, s.season)) + '</span>').join('') + '</div>' : '') +
+    return '<div class="conn ' + (cls || '') + '">' + railHTML(k) +
+      '<span class="reason">' + chip(first.team, first.season) + '<span>Teammates on the <b>' + esc(H.teamLabel(index, first.team, first.season)) + '</b></span></span>' +
+      (more > 0 ? '<button type="button" class="more-btn" aria-expanded="false" data-more>+' + more + ' more</button>' : '') +
+      (more > 0 ? '<div class="more-list" hidden>' + shared.slice(1).map((s, i) => '<span style="--i:' + i + '">' + chip(s.team, s.season) + esc(H.teamLabel(index, s.team, s.season)) + '</span>').join('') + '</div>' : '') +
       '</div>';
   }
-  function nodeHTML(p, kind, tag) {
-    const dot = kind === 'target' ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>'
+  function nodeHTML(p, kind, tag, k) {
+    const dot = kind === 'target' ? '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>'
       : kind === 'ghost' ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>'
-      : kind === 'lost' ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>'
+      : kind === 'lost' ? X_SVG
       : posAbbr(p);
-    return '<div class="node node-' + kind + '">' +
+    return '<div class="node node-' + kind + '" style="--k:' + k + '">' +
       '<span class="node-dot" aria-hidden="true">' + dot + '</span>' +
       '<span class="node-who"><strong>' + esc(p.name) + '</strong><small>' + (tag ? '<span class="node-tag">' + esc(tag) + '</span>' : '') + esc(metaLine(p)) + '</small></span>' +
       '<span class="chips">' + chipsFor(p, 3) + '</span></div>';
@@ -326,88 +351,78 @@
     const body = won ? ids.slice(0, -1) : ids;
     const sc = H.score(st);
 
-    // chain so far
     $('#chain').innerHTML = body.map((id, i) => {
-      const p = H.player(index, id);
-      const enter = opts.animate && i === body.length - 1 && i > 0 ? ' enter' : '';
-      return '<li class="step' + enter + '">' +
-        (i > 0 ? connHTML(H.sharedTeams(index, ids[i - 1], id)) : '') +
-        nodeHTML(p, i === 0 ? 'start' : 'mid', i === 0 ? 'Start' : '') + '</li>';
+      const enter = opts.animate && i === body.length - 1 && i > 0 && !won ? ' enter' : '';
+      return '<li class="step' + enter + '">' + (i > 0 ? connHTML(H.sharedTeams(index, ids[i - 1], id), i) : '') +
+        nodeHTML(H.player(index, id), i === 0 ? 'start' : 'mid', i === 0 ? 'Start' : '', i) + '</li>';
     }).join('');
+    if (opts.animate && won && body.length > 1) $('#chain').lastElementChild.classList.add('enter');
 
-    // header meta
     $('#chainMeta').innerHTML = '<b>' + plural(sc.links, 'link') + '</b> · Par ' + st.par;
 
-    // slot: input while playing, a result strip when over
+    // slot: the search while playing
     const last = H.player(index, lastId());
-    const finder = $('#finder'), strip = $('#resultStrip'), next = $('#nextConn');
-    finder.hidden = !playing;
-    next.hidden = !playing;
-    if (playing) {
-      next.className = 'conn conn-next';
-      next.innerHTML = '<span>Next: a teammate of <b>' + esc(last.name) + '</b></span>';
-      $('#guess').disabled = false;
-    } else {
-      $('#guess').disabled = true;
-      closeAC();
-    }
-    strip.hidden = playing;
-    if (!playing) {
-      strip.innerHTML = '<div><div class="rs-score ' + (won && sc.over === 0 ? 'is-par' : lost ? 'is-x' : '') + '">' +
-        (won ? esc(sc.label === 'Par' ? 'Par' : sc.label) : esc(S.lost)) + '</div>' +
-        '<small>' + (won ? 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par : plural(st.inc, S.miss) + ' · Par ' + st.par) + '</small></div>' +
-        '<button type="button" class="btn btn-gold" id="btnSeeResults">See results</button>';
-      $('#btnSeeResults').addEventListener('click', () => openResults());
-    }
     $('#slot').hidden = !playing;
+    $('#guess').disabled = !playing;
+    if (playing) {
+      $('#nextConn').innerHTML = railHTML(body.length) + '<span class="reason">Next: a teammate of <b>' + esc(last.name) + '</b></span>';
+    } else closeAC();
 
     // hint for the current position (kept visible while you stay there)
     const h = playing ? st.hintAt[lastId()] : null;
     const pill = $('#hintPill');
     pill.hidden = !h;
-    if (h) {
-      pill.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"/></svg>' +
-        '<span>Hint: try the</span>' + chip(h.team, h.season) + '<b>' + esc(H.teamLabel(index, h.team, h.season)) + '</b>';
-    }
+    if (h) pill.innerHTML = BULB_SVG + '<span>Hint: try the</span>' + chip(h.team, h.season) + '<b>' + esc(H.teamLabel(index, h.team, h.season)) + '</b>';
 
     // target
-    const end = H.player(index, st.end);
-    const tgt = $('#target');
+    const end = H.player(index, st.end), tgt = $('#target');
     tgt.className = 'target' + (opts.animate && won ? ' enter' : '');
-    if (won) {
-      tgt.innerHTML = connHTML(H.sharedTeams(index, ids[ids.length - 2], st.end), 'conn-final') + nodeHTML(end, 'target', 'Finish');
-    } else {
-      tgt.innerHTML = '<div class="conn conn-pending" aria-hidden="true"></div>' + nodeHTML(end, lost ? 'lost' : 'ghost', 'Finish');
+    tgt.innerHTML = won
+      ? connHTML(H.sharedTeams(index, ids[ids.length - 2], st.end), body.length, 'conn-final') + nodeHTML(end, 'target', 'Finish', body.length)
+      : '<div class="conn conn-pending" aria-hidden="true">' + railHTML(body.length) + '</div>' + nodeHTML(end, lost ? 'lost' : 'ghost', 'Finish', body.length);
+
+    // result strip once the game is over
+    const strip = $('#resultStrip');
+    strip.hidden = playing;
+    if (!playing) {
+      strip.innerHTML = '<div><div class="rs-score ' + (won && sc.over === 0 ? 'is-par' : lost ? 'is-x' : '') + '">' + esc(won ? sc.label : S.lost) + '</div>' +
+        '<small>' + (won ? 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par : plural(st.inc, S.miss) + ' · Par ' + st.par) + '</small></div>' +
+        '<button type="button" class="btn btn-gold" id="btnSeeResults">See results</button>';
+      $('#btnSeeResults').addEventListener('click', () => openResults());
     }
 
     renderControls();
     $('#ruleNote').textContent = playing
-      ? 'Teammates = same team, same season (' + (playersJson.seasons ? playersJson.seasons.join('–') : '') + ', regular season and playoffs).'
+      ? 'Teammates = same team, same season (' + seasonsRange() + ', regular season and playoffs).'
       : (game.mode === 'practice' ? 'Practice replay: not counted in your stats.' : '');
   }
 
   function renderControls() {
-    const st = game.state, playing = st.status === 'playing';
-    const total = H.DOWNS;
-    let dots = '<span class="downs-label">' + esc(cap(S.lives)) + '</span>';
-    for (let i = 0; i < total; i++) dots += '<span class="down' + (i < st.downs ? '' : ' used') + '"></span>';
+    const st = game.state, playing = st.status === 'playing', total = H.DOWNS;
+    const was = game.shownDowns == null ? st.downs : game.shownDowns;
+    let dots = '<span class="downs-label">' + esc(cap(LIVES)) + '</span>';
+    for (let i = 0; i < total; i++) {
+      const used = i >= st.downs, pop = used && i < was;
+      dots += '<span class="down' + (used ? ' used' : '') + (pop ? ' pop' : '') + '"></span>';
+    }
+    game.shownDowns = st.downs;
     const d = $('#downs');
     d.innerHTML = dots;
     d.classList.toggle('last', playing && st.downs === 1);
-    d.setAttribute('aria-label', plural(st.downs, S.life || 'down', S.lives) + ' left of ' + total);
+    d.setAttribute('aria-label', downsLeft(st.downs) + ' of ' + total);
     $('#btnUndo').disabled = !playing || st.chain.length < 2;
     const cached = playing && !!st.hintAt[lastId()];
     const hb = $('#btnHint');
     hb.disabled = !playing || cached || st.downs <= 1;
     $('#btnHintLabel').textContent = cached ? 'Hint shown' : 'Hint';
-    hb.title = !playing ? '' : cached ? 'The hint for this spot is shown below the search box' : st.downs <= 1 ? 'No hints on your last ' + (S.life || 'down') : 'Costs one ' + (S.life || 'down');
+    hb.title = !playing ? '' : cached ? 'The hint for this spot is shown under the search box' : st.downs <= 1 ? 'No hints on your last ' + LIFE : 'Costs one ' + LIFE;
   }
 
   // "+2 more" toggles
   $('#chainCard').addEventListener('click', (e) => {
     const b = e.target.closest('[data-more]');
     if (!b) return;
-    const list = b.nextElementSibling;
+    const list = b.closest('.conn').querySelector('.more-list');
     const open = b.getAttribute('aria-expanded') !== 'true';
     b.setAttribute('aria-expanded', String(open));
     list.hidden = !open;
@@ -419,19 +434,17 @@
     switch (reason) {
       case 'in-chain': return ['Already in your chain', p.name + ' is already linked.'];
       case 'start': return ['That\'s your starting player', 'Pick a teammate of ' + last.name + '.'];
-      case 'end': return ['Not yet', p.name + ' never played with ' + last.name + '. Find a link first. No ' + (S.life || 'down') + ' lost.'];
+      case 'end': return ['Not yet', p.name + ' never played with ' + last.name + '. Find a link first. No ' + LIFE + ' lost.'];
       case 'unknown': return ['Pick a player from the list', ''];
       default: return ['This game is over', ''];
     }
   }
 
   function pick(id) {
-    if (!game || game.state.status !== 'playing') return;
-    const before = game.state;
+    if (!game || game.state.status !== 'playing' || busy) return;
     const lastP = H.player(index, lastId());
     const p = H.player(index, id);
-    const res = H.guess(index, before, id);
-    const r = res.result;
+    const res = H.guess(index, game.state, id), r = res.result;
     if (r.kind === 'rejected') {
       const [msg, sub] = rejectMessage(r.reason, p || { name: 'That player' });
       toast(msg, 'warn', sub);
@@ -441,89 +454,124 @@
     game.state = res.state;
     save();
     clearGuess(r.kind === 'link' || r.kind === 'incompletion');
+
     if (r.kind === 'incompletion' || r.kind === 'lost') {
-      flashMiss();
-      haptic([12, 40, 12]);
+      missFeedback(p.name);
+      haptic('miss');
       const left = r.kind === 'lost' ? 0 : r.downsLeft;
       const msg = (r.kind === 'lost' ? S.lost : cap(S.miss)) + ' — ' + p.name + ' and ' + lastP.name + ' were never teammates';
-      toast(msg, 'bad', r.kind === 'lost' ? 'Game over.' : plural(left, S.life || 'down', S.lives) + ' left');
-      announce(msg + '. ' + plural(left, S.life || 'down', S.lives) + ' left.');
-      renderGame();
-      if (r.kind === 'lost') finish();
+      toast(msg, 'bad', r.kind === 'lost' ? 'Game over.' : downsLeft(left));
+      announce(msg + '. ' + downsLeft(left) + '.');
+      if (r.kind === 'lost') {
+        renderControls();
+        busy = true;
+        setTimeout(() => { busy = false; renderGame(); finish(false); }, Math.max(tok('--dur-l') * 2, 0));
+      } else renderControls();
       return;
     }
-    // link or solved
-    haptic(6);
+
     const sh = r.links[0];
     renderGame({ animate: true });
     if (r.kind === 'link') {
+      haptic('link');
       announce(p.name + ' added. Teammates on the ' + H.teamLabel(index, sh.team, sh.season) + '. ' + plural(game.state.chain.length - 1, 'link') + ' so far.');
       keepInputInView();
     } else {
-      const end = H.player(index, game.state.end);
-      const f = r.final[0];
+      const end = H.player(index, game.state.end), f = r.final[0];
       announce(p.name + ' added, and played with ' + end.name + ' on the ' + H.teamLabel(index, f.team, f.season) + '. Solved!');
-      finish();
+      finish(true);
     }
   }
 
-  function finish() {
+  /** Solve: wait for the final link to land, pulse the chain from start to end (gold sweep at par), then raise the sheet. */
+  function finish(won) {
     recordDaily();
     $('#guess').blur();
-    setTimeout(() => openResults(), REDUCE.matches ? 50 : 900);
+    const card = $('#chainCard');
+    if (!won) { setTimeout(() => openResults(), tok('--dur-l')); return; }
+    haptic('solve');
+    busy = true;
+    const nodes = game.state.chain.length, step = tok('--lock-step');
+    const atPar = H.score(game.state).over === 0;
+    const landing = tok('--dur-l') + 140;
+    setTimeout(() => {
+      card.classList.remove('lock', 'par-shine'); reflow(card);
+      card.style.setProperty('--shine-delay', Math.round(step * (nodes - 1) * 0.6) + 'ms');
+      card.classList.add('lock');
+      if (atPar) card.classList.add('par-shine');
+    }, landing);
+    const total = landing + step * nodes + tok('--dur-l') + (atPar ? 380 : 120);
+    setTimeout(() => { busy = false; openResults(); }, total);
+    setTimeout(() => card.classList.remove('lock', 'par-shine'), total + 1400);
   }
 
-  function flashMiss() {
+  /** Incompletion: the input shakes, a red link snaps off the chain and a down drains. */
+  function missFeedback(name) {
     const f = $('#field');
-    f.classList.remove('miss');
-    void f.offsetWidth;
-    f.classList.add('miss');
-    setTimeout(() => f.classList.remove('miss'), 900);
+    f.classList.remove('miss'); reflow(f); f.classList.add('miss');
+    setTimeout(() => f.classList.remove('miss'), 950);
+    const slot = $('#slot'), next = $('#nextConn');
+    const old = slot.querySelector('.fail-stub');
+    if (old) old.remove();
+    const stub = document.createElement('div');
+    stub.className = 'fail-stub';
+    stub.setAttribute('aria-hidden', 'true');
+    stub.innerHTML = '<span class="rail"><span class="rail-line"></span><span class="rail-knot">' + X_SVG + '</span></span><span class="fail-name">' + X_SVG + esc(name) + '</span>';
+    stub.style.height = next.offsetHeight + 'px';
+    slot.appendChild(stub);
+    next.style.transition = 'opacity ' + tok('--dur-s') + 'ms';
+    next.style.opacity = '0';
+    setTimeout(() => { stub.remove(); next.style.opacity = ''; }, Math.max(1150, 0));
   }
 
   $('#btnUndo').addEventListener('click', () => {
-    if (!game) return;
-    const removed = H.player(index, lastId());
+    if (!game || busy) return;
     const next = H.undo(game.state);
     if (next.chain.length === game.state.chain.length) return;
-    game.state = next;
-    save();
-    renderGame();
-    announce('Removed ' + removed.name + '. Undo is free.');
-    toast('Removed ' + removed.name, 'warn', 'Undo is free.');
+    const removed = H.player(index, lastId());
+    const apply = () => {
+      game.state = next; save(); renderGame(); busy = false;
+      announce('Removed ' + removed.name + '. Undo is free.');
+    };
+    const step = $('#chain').lastElementChild;
+    if (!step || REDUCE.matches) return apply();
+    busy = true;
+    step.classList.add('retract');
+    haptic('tap');
+    setTimeout(apply, tok('--dur-m') + 100);
   });
 
   /* hint: confirm first (it costs a down), then show it and keep it visible */
   const dlgHint = $('#dlgHint');
   $('#btnHint').addEventListener('click', () => {
-    if (!game || game.state.status !== 'playing') return;
+    if (!game || game.state.status !== 'playing' || busy) return;
     const st = game.state;
-    if (st.hintAt[lastId()]) { $('#hintPill').scrollIntoView({ block: 'nearest' }); return; }
-    if (st.downs <= 1) { toast('No hints on your last ' + (S.life || 'down'), 'warn'); return; }
-    const life = S.life || 'down';
+    if (st.hintAt[lastId()]) { $('#hintPill').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+    if (st.downs <= 1) { toast('No hints on your last ' + LIFE, 'warn'); return; }
     $('#hintDesc').innerHTML = 'A hint names the team and season of the next link on a shortest route from <b>' + esc(H.player(index, lastId()).name) +
-      '</b>. It costs one ' + esc(life) + ': you\'ll have ' + plural(st.downs - 1, life, S.lives) + ' left.';
-    openDialog(dlgHint, $('#btnHint'));
+      '</b>. It costs one ' + esc(LIFE) + ': you\'ll have ' + plural(st.downs - 1, LIFE, LIVES) + ' left.';
+    returnFocus.set(dlgHint, $('#btnHint'));
+    dlgHint.showModal();
   });
   dlgHint.addEventListener('close', () => {
-    document.documentElement.classList.remove('modal-open');
     if (dlgHint.returnValue !== 'ok' || !game) return;
     const r = H.hint(index, game.state);
     if (r.error) {
-      toast(r.error === 'last-down' ? 'No hints on your last ' + (S.life || 'down') : r.error === 'none' ? 'No hint available here' : 'This game is over', 'warn');
+      toast(r.error === 'last-down' ? 'No hints on your last ' + LIFE : r.error === 'none' ? 'No hint available here' : 'This game is over', 'warn');
       return;
     }
     game.state = r.state;
     save();
     renderGame();
     const label = H.teamLabel(index, r.hint.team, r.hint.season);
-    announce('Hint: try the ' + label + '. ' + plural(game.state.downs, S.life || 'down', S.lives) + ' left.');
-    toast('Try the ' + label, 'good', plural(game.state.downs, S.life || 'down', S.lives) + ' left');
+    announce('Hint: try the ' + label + '. ' + downsLeft(game.state.downs) + '.');
+    toast('Try the ' + label, 'good', downsLeft(game.state.downs));
   });
 
   /* ------------------------------------------------------------ autocomplete */
   const input = $('#guess'), acList = $('#acList'), clearBtn = $('#guessClear');
   let acItems = [], acActive = -1, acTimer = 0;
+  const acRows = () => acList.querySelectorAll('.ac-row');
 
   function clearGuess(keepFocus) {
     clearTimeout(acTimer); acTimer = 0;
@@ -539,13 +587,9 @@
     input.removeAttribute('aria-activedescendant');
   }
   function highlight(name, q) {
-    const nq = H.normalize(q);
-    if (!nq) return esc(name);
-    // only highlight a plain case-insensitive prefix match on the raw name (cosmetic)
-    const lower = name.toLowerCase(), i = lower.indexOf(q.trim().toLowerCase());
-    if (i < 0 || !q.trim()) return esc(name);
-    const j = i + q.trim().length;
-    return esc(name.slice(0, i)) + '<mark>' + esc(name.slice(i, j)) + '</mark>' + esc(name.slice(j));
+    const t = q.trim().toLowerCase(), i = name.toLowerCase().indexOf(t);
+    if (!t || i < 0) return esc(name);
+    return esc(name.slice(0, i)) + '<mark>' + esc(name.slice(i, i + t.length)) + '</mark>' + esc(name.slice(i + t.length));
   }
   function runSearch() {
     acTimer = 0;
@@ -557,25 +601,40 @@
     renderAC(q);
   }
   function renderAC(q) {
+    const wasOpen = !acList.hidden;
     if (!acItems.length) {
-      acList.innerHTML = '<li class="ac-empty" role="option" aria-disabled="true">No player by that name played ' + esc(playersJson.seasons ? playersJson.seasons.join('–') : '') + '.</li>';
+      acList.innerHTML = '<li class="ac-empty" role="option" aria-disabled="true" aria-selected="false">No player by that name played ' + esc(seasonsRange()) + '.</li>';
     } else {
       const endId = game.state.end;
-      acList.innerHTML = acItems.map((p, i) => '<li class="ac-row" role="option" id="ac-' + i + '" data-id="' + esc(p.id) + '" aria-selected="' + (i === acActive) + '" style="--i:' + i + '">' +
+      acList.innerHTML = '<li class="ac-hl" role="presentation" aria-hidden="true"></li>' + acItems.map((p, i) =>
+        '<li class="ac-row" role="option" id="ac-' + i + '" data-id="' + esc(p.id) + '" aria-selected="' + (i === acActive) + '" style="--i:' + (wasOpen ? 0 : i) + '">' +
         '<span><strong>' + highlight(p.name, q) + (p.id === endId ? '<span class="ac-tag">Finish</span>' : '') + '</strong><small>' + esc(metaLine(p)) + '</small></span>' +
         '<span class="chips">' + chipsFor(p, 3) + '</span></li>').join('');
     }
     acList.hidden = false;
     input.setAttribute('aria-expanded', 'true');
-    syncActive();
+    syncActive(true);
     sizeAC();
   }
-  function syncActive() {
-    [...acList.querySelectorAll('.ac-row')].forEach((el, i) => el.setAttribute('aria-selected', String(i === acActive)));
-    if (acActive >= 0) {
-      input.setAttribute('aria-activedescendant', 'ac-' + acActive);
-      const el = $('#ac-' + acActive);
-      if (el) el.scrollIntoView({ block: 'nearest' });
+  /** Move the single highlight to the active row (instant on a fresh list, gliding otherwise). */
+  function syncActive(instant) {
+    const rows = acRows();
+    rows.forEach((el, i) => el.setAttribute('aria-selected', String(i === acActive)));
+    const hl = acList.querySelector('.ac-hl'), row = rows[acActive];
+    if (hl) {
+      if (instant) hl.classList.remove('glide');
+      if (row) {
+        hl.style.height = row.offsetHeight + 'px';
+        hl.style.transform = 'translateY(' + row.offsetTop + 'px)';
+        hl.classList.add('on');
+      } else hl.classList.remove('on');
+      if (instant) { reflow(hl); hl.classList.add('glide'); }
+    }
+    if (row) {
+      input.setAttribute('aria-activedescendant', row.id);
+      const top = row.offsetTop, bottom = top + row.offsetHeight;
+      if (top < acList.scrollTop) acList.scrollTop = top - 6;
+      else if (bottom > acList.scrollTop + acList.clientHeight) acList.scrollTop = bottom - acList.clientHeight + 6;
     } else input.removeAttribute('aria-activedescendant');
   }
   /** Keep the dropdown inside the visible viewport (above an on-screen keyboard). */
@@ -583,8 +642,7 @@
     if (acList.hidden) return;
     const vv = window.visualViewport;
     const bottom = vv ? vv.height + vv.offsetTop : window.innerHeight;
-    const top = input.getBoundingClientRect().bottom + 6;
-    const room = Math.floor(bottom - top - 12);
+    const room = Math.floor(bottom - input.getBoundingClientRect().bottom - 20);
     acList.style.maxHeight = Math.max(150, Math.min(420, room)) + 'px';
   }
   function keepInputInView() {
@@ -592,7 +650,7 @@
     const hb = $('#topbar').getBoundingClientRect().height;
     const y = $('#field').getBoundingClientRect().top + window.scrollY - hb - 12;
     if (Math.abs(window.scrollY - y) > 4) window.scrollTo({ top: y, behavior: REDUCE.matches ? 'auto' : 'smooth' });
-    setTimeout(sizeAC, 350);
+    setTimeout(sizeAC, 380);
   }
 
   input.addEventListener('input', () => {
@@ -611,37 +669,30 @@
       e.preventDefault();
       const n = acItems.length;
       acActive = e.key === 'ArrowDown' ? (acActive + 1) % n : (acActive - 1 + n) % n;
-      syncActive();
+      syncActive(false);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (acTimer) { clearTimeout(acTimer); runSearch(); }
       if (acActive >= 0 && acItems[acActive]) pick(acItems[acActive].id);
       else if (input.value.trim()) toast('Pick a player from the list', 'warn');
     } else if (e.key === 'Escape') {
-      if (!acList.hidden) { e.preventDefault(); closeAC(); }
-      else if (input.value) { e.preventDefault(); clearGuess(); }
-    } else if (e.key === 'Tab') {
-      closeAC();
-    }
+      if (!acList.hidden) { e.preventDefault(); closeAC(); } else if (input.value) { e.preventDefault(); clearGuess(); }
+    } else if (e.key === 'Tab') closeAC();
   });
   acList.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus (and the keyboard) on the input
-  acList.addEventListener('click', (e) => {
-    const row = e.target.closest('.ac-row');
-    if (row) pick(row.dataset.id);
-  });
-  acList.addEventListener('mousemove', (e) => {
+  acList.addEventListener('click', (e) => { const row = e.target.closest('.ac-row'); if (row) pick(row.dataset.id); });
+  acList.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
     const row = e.target.closest('.ac-row');
     if (!row) return;
-    const i = [...acList.children].indexOf(row);
-    if (i !== acActive) { acActive = i; syncActive(); }
+    const i = [...acRows()].indexOf(row);
+    if (i !== acActive) { acActive = i; syncActive(false); }
   });
   clearBtn.addEventListener('click', () => { clearGuess(); input.focus(); });
   document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#finder')) closeAC(); });
   if (window.visualViewport) window.visualViewport.addEventListener('resize', sizeAC);
   window.addEventListener('resize', sizeAC);
-
-  /* "/" focuses the search from anywhere */
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', (e) => { // "/" focuses the search
     if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
     if (document.querySelector('dialog[open]') || currentView !== 'game' || input.disabled) return;
@@ -652,99 +703,114 @@
   /* ------------------------------------------------------------ toasts / announcer */
   const toasts = $('#toasts');
   function toast(msg, kind, sub) {
+    // a modal dialog sits in the top layer, so toasts move inside it while it is open
+    const host = document.querySelector('dialog[open]') || document.body;
+    if (toasts.parentNode !== host) host.appendChild(toasts);
     const el = document.createElement('div');
     el.className = 'toast ' + (kind || 'warn');
     const ic = kind === 'bad' ? '!' : kind === 'good' ? '✓' : 'i';
     el.innerHTML = '<span class="t-ic" aria-hidden="true">' + ic + '</span><span>' + esc(msg) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span>';
     toasts.appendChild(el);
     while (toasts.children.length > 2) toasts.firstElementChild.remove();
-    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 260); }, CONFIG.toastMs);
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), tok('--dur-s') + 40); }, CONFIG.toastMs);
   }
   const announcer = $('#announcer');
   function announce(text) { announcer.textContent = ''; setTimeout(() => { announcer.textContent = text; }, 30); }
 
-  /* ------------------------------------------------------------ dialogs */
+  /* ------------------------------------------------------------ sheets: open/close, drag to dismiss with velocity */
   const returnFocus = new WeakMap();
-  function openDialog(dlg, from) {
+  function openSheet(dlg, from) {
     if (dlg.open) return;
     returnFocus.set(dlg, from || document.activeElement);
     closeAC();
-    dlg.classList.remove('closing');
+    const panel = dlg.querySelector('.sheet-panel');
+    dlg.classList.remove('closing', 'shown', 'dragging');
+    panel.style.transform = ''; panel.style.transition = '';
+    dlg.querySelector('.sheet-scrim').style.opacity = '';
     dlg.showModal();
     document.documentElement.classList.add('modal-open');
+    requestAnimationFrame(() => requestAnimationFrame(() => dlg.classList.add('shown')));
   }
-  function closeDialog(dlg, value) {
-    if (!dlg.open) return;
-    const done = () => { dlg.classList.remove('closing'); dlg.style.transform = ''; dlg.close(value); };
-    if (REDUCE.matches || !dlg.classList.contains('sheet')) return done();
+  function closeSheet(dlg, ms) {
+    if (!dlg.open || dlg.classList.contains('closing')) return;
+    const d = ms != null ? ms : tok('--dur-m');
+    dlg.style.setProperty('--sheet-out', d + 'ms');
     dlg.classList.add('closing');
-    setTimeout(done, PHONE.matches ? 230 : 180);
+    dlg.classList.remove('shown');
+    dlg.querySelector('.sheet-panel').style.transform = '';
+    dlg.querySelector('.sheet-scrim').style.opacity = '';
+    setTimeout(() => { dlg.close(); dlg.classList.remove('closing'); dlg.style.removeProperty('--sheet-out'); }, d + 30);
   }
-  function closeAllDialogs() { document.querySelectorAll('dialog[open]').forEach((d) => d.close()); }
+  function closeAllDialogs() { document.querySelectorAll('dialog[open]').forEach((d) => { d.classList.remove('shown', 'closing'); d.close(); }); }
+
   document.querySelectorAll('dialog').forEach((dlg) => {
     dlg.addEventListener('close', () => {
+      if (toasts.parentNode === dlg) document.body.appendChild(toasts);
       if (!document.querySelector('dialog[open]')) document.documentElement.classList.remove('modal-open');
       const f = returnFocus.get(dlg);
-      if (f && f.isConnected && typeof f.focus === 'function' && !f.disabled) {
-        if (f === input && PHONE.matches) return; // don't pop the keyboard back up
-        f.focus({ preventScroll: true });
-      }
+      if (f && f.isConnected && typeof f.focus === 'function' && !f.disabled && !(f === input && PHONE.matches)) f.focus({ preventScroll: true });
     });
-    dlg.addEventListener('cancel', (e) => { if (dlg.classList.contains('sheet')) { e.preventDefault(); closeDialog(dlg); } });
-    dlg.addEventListener('click', (e) => {
-      if (e.target.closest('[data-close]')) { closeDialog(dlg); return; }
-      if (e.target === dlg) { // backdrop
-        const r = dlg.getBoundingClientRect();
-        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) closeDialog(dlg, 'cancel');
-      }
-    });
-    if (dlg.classList.contains('sheet')) swipeToClose(dlg);
+    if (!dlg.classList.contains('sheet')) return;
+    dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeSheet(dlg); });
+    dlg.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeSheet(dlg); });
+    attachDrag(dlg);
   });
 
-  /** Phones: drag a sheet down from its top (when scrolled to the top) to close it. */
-  function swipeToClose(dlg) {
-    let y0 = 0, t0 = 0, dy = 0, active = false, scroller = null;
-    dlg.addEventListener('pointerdown', (e) => {
-      if (!PHONE.matches || e.pointerType === 'mouse' || e.target.closest('button, a, input, pre')) return;
-      scroller = dlg.querySelector('.sheet-scroll');
-      if (scroller && scroller.scrollTop > 0) return;
-      active = true; y0 = e.clientY; t0 = performance.now(); dy = 0;
+  function attachDrag(dlg) {
+    const panel = dlg.querySelector('.sheet-panel'), scrim = dlg.querySelector('.sheet-scrim');
+    let dragging = false, y0 = 0, lastY = 0, lastT = 0, vy = 0, dy = 0, h = 1, id = null;
+    panel.addEventListener('pointerdown', (e) => {
+      if (!PHONE.matches || dlg.classList.contains('closing')) return;
+      if (!e.target.closest('.sheet-grab, [data-drag]') || e.target.closest('button, a, input')) return;
+      const sc = dlg.querySelector('.sheet-scroll');
+      if (sc && sc.scrollTop > 2 && !e.target.closest('.sheet-grab')) return;
+      dragging = true; id = e.pointerId; y0 = lastY = e.clientY; lastT = performance.now(); vy = 0; dy = 0; h = panel.offsetHeight;
+      try { panel.setPointerCapture(id); } catch (err) { /* synthetic events */ }
+      dlg.classList.add('dragging');
     });
-    dlg.addEventListener('pointermove', (e) => {
-      if (!active) return;
-      dy = Math.max(0, e.clientY - y0);
-      if (dy > 6) { dlg.classList.add('dragging'); dlg.style.transform = 'translateY(' + dy + 'px)'; }
+    panel.addEventListener('pointermove', (e) => {
+      if (!dragging || e.pointerId !== id) return;
+      const now = performance.now(), raw = e.clientY - y0;
+      dy = raw > 0 ? raw : raw * 0.18;                       // resist dragging up
+      const inst = (e.clientY - lastY) / Math.max(1, now - lastT);
+      vy = 0.75 * inst + 0.25 * vy;                          // px/ms, smoothed
+      lastY = e.clientY; lastT = now;
+      panel.style.transform = 'translateY(' + dy.toFixed(1) + 'px)';
+      scrim.style.opacity = String(Math.max(0, 1 - Math.max(0, dy) / h));
     });
-    const end = () => {
-      if (!active) return;
-      active = false;
-      const v = dy / Math.max(1, performance.now() - t0);
+    const end = (e) => {
+      if (!dragging || (e && e.pointerId !== id)) return;
+      dragging = false;
       dlg.classList.remove('dragging');
-      if (dy > dlg.getBoundingClientRect().height / 3 || (dy > 40 && v > 0.6)) closeDialog(dlg);
-      else { dlg.style.transition = 'transform .35s var(--spring)'; dlg.style.transform = ''; setTimeout(() => { dlg.style.transition = ''; }, 360); }
+      const projected = dy + Math.max(0, vy) * 200;          // where a flick would carry it
+      if (projected > h * 0.4 || vy > 0.8) {
+        const ms = Math.round(Math.min(360, Math.max(140, (h - dy) / Math.max(vy, 1.4))));
+        closeSheet(dlg, ms);
+      } else {
+        panel.style.transition = 'transform ' + tok('--dur-l') + 'ms var(--ease-spring)';
+        panel.style.transform = '';
+        scrim.style.opacity = '';
+        setTimeout(() => { panel.style.transition = ''; }, tok('--dur-l') + 20);
+      }
     };
-    dlg.addEventListener('pointerup', end);
-    dlg.addEventListener('pointercancel', end);
+    panel.addEventListener('pointerup', end);
+    panel.addEventListener('pointercancel', end);
   }
 
   /* ------------------------------------------------------------ results sheet */
   const sheet = $('#sheet');
   let countdownTimer = 0, rollAt = 0;
 
-  /** The next moment the Eastern calendar date changes (binary search on H.easternDate; no tz math here). */
+  /** The next moment the Eastern calendar date changes (binary search over H.easternDate; no tz maths here). */
   function nextRollover() {
     const now = Date.now(), d0 = H.easternDate(new Date(now));
     let lo = now, hi = now + 26 * 3600e3;
     if (H.easternDate(new Date(hi)) === d0) return hi;
-    while (hi - lo > 500) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (H.easternDate(new Date(mid)) === d0) lo = mid; else hi = mid;
-    }
+    while (hi - lo > 500) { const mid = Math.floor((lo + hi) / 2); if (H.easternDate(new Date(mid)) === d0) lo = mid; else hi = mid; }
     return hi;
   }
   function fmtCountdown(ms) {
-    const s = Math.max(0, Math.floor(ms / 1000));
-    const p2 = (n) => (n < 10 ? '0' : '') + n;
+    const s = Math.max(0, Math.floor(ms / 1000)), p2 = (n) => (n < 10 ? '0' : '') + n;
     return p2(Math.floor(s / 3600)) + ':' + p2(Math.floor((s % 3600) / 60)) + ':' + p2(s % 60);
   }
   function tickCountdown() {
@@ -761,16 +827,12 @@
     el.setAttribute('datetime', 'PT' + Math.floor(left / 1000) + 'S');
   }
 
-  function miniChain(ids, links, stEnd) {
-    // ids: player ids; links[i]: {team, season} between ids[i] and ids[i+1]
+  function miniChain(ids, links, endId) {
     let html = '';
     ids.forEach((id, i) => {
       const p = H.player(index, id);
-      if (i > 0) {
-        const l = links[i - 1];
-        html += '<li class="ml-link">' + chip(l.team, l.season) + 'Teammates on the ' + esc(H.teamLabel(index, l.team, l.season)) + '</li>';
-      }
-      const cls = i === 0 ? 's' : id === stEnd ? 'e' : '';
+      if (i > 0) { const l = links[i - 1]; html += '<li class="ml-link">' + chip(l.team, l.season) + 'Teammates on the ' + esc(H.teamLabel(index, l.team, l.season)) + '</li>'; }
+      const cls = i === 0 ? 's' : id === endId ? 'e' : '';
       html += '<li><span class="ml-dot ' + cls + '" aria-hidden="true">' + posAbbr(p) + '</span><span class="ml-name">' + esc(p.name) + '</span><span class="chips">' + chipsFor(p, 2) + '</span></li>';
     });
     return html;
@@ -780,66 +842,82 @@
     const ds = H.displayStreaks(stats, todayN);
     const pct = stats.played ? Math.round((stats.won / stats.played) * 100) : 0;
     const t = [[stats.played, 'Played'], [pct, 'Win %'], [ds.cur, 'Streak'], [ds.max, 'Best streak'], [ds.parCur, 'Par streak', 'gold'], [ds.parMax, 'Best par streak', 'gold']];
-    return '<div class="tiles">' + t.map((x, i) => '<div class="tile ' + (x[2] || '') + '" style="--i:' + i + '"><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>';
+    return '<div class="tiles">' + t.map((x, i) => '<div class="tile ' + (x[2] || '') + '" style="--i:' + i + '"><b data-count="' + x[0] + '">' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>';
+  }
+  /** Numbers tick up from 0 (text only; no layout work beyond the glyphs). */
+  function animateCounts(root, delay) {
+    if (REDUCE.matches) return;
+    root.querySelectorAll('[data-count]').forEach((el, i) => {
+      const to = Number(el.dataset.count);
+      if (!(to > 0)) return;
+      el.textContent = '0';
+      const dur = 650 + Math.min(500, to * 25), wait = (delay || 0) + i * tok('--stagger');
+      let t0 = null;
+      const step = (now) => {             // rAF timestamps only, so one clock drives the whole count
+        if (t0 === null) t0 = now + wait;
+        const k = Math.min(1, Math.max(0, (now - t0) / dur));
+        el.textContent = String(Math.round(to * (1 - Math.pow(1 - k, 3))));
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
   }
 
   function openResults() {
     if (!game || game.state.status === 'playing') return;
-    const pz = game.puzzle, st = game.state, sc = H.score(st);
-    const won = st.status === 'won';
+    const pz = game.puzzle, st = game.state, sc = H.score(st), won = st.status === 'won', practice = game.mode === 'practice';
     const share = H.shareText(pz, st, { url: CONFIG.shareUrl, title: S.title, emoji: S.emoji });
     const myLinks = [];
     for (let i = 1; i < st.chain.length; i++) myLinks.push(H.sharedTeams(index, st.chain[i - 1], st.chain[i])[0]);
     const optLinks = (pz.links || []).map((l) => ({ team: l[0], season: l[1] }));
-    const scoreCls = won && sc.over === 0 ? 'is-par' : won ? '' : 'is-x';
+    const atPar = won && sc.over === 0;
     const sub = [plural(sc.links, 'link') + ' · Par ' + pz.par, plural(st.inc, S.miss), plural(st.hints, 'hint')].join(' · ');
-    const practice = game.mode === 'practice';
+    let sec = 0;
+    const secOpen = (id) => '<section class="sheet-sec" style="--i:' + (sec++) + '" aria-labelledby="' + id + '">';
 
     $('#sheetScroll').innerHTML =
-      '<div class="sheet-grab" aria-hidden="true"></div>' +
-      '<header class="sheet-hero">' +
-        '<button type="button" class="close-btn" data-close aria-label="Close results"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' +
+      '<header class="sheet-hero' + (atPar ? ' par' : '') + '" data-drag>' +
+        '<button type="button" class="close-btn" data-close aria-label="Close results">' + CLOSE_SVG + '</button>' +
         '<span class="kicker">' + esc(S.title) + ' <b>#' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + (practice ? ' · Practice' : '') + '</span>' +
-        '<div class="score-big ' + scoreCls + '" aria-hidden="true">' + esc(sc.label) + '</div>' +
-        '<h2 id="sheetTitle" tabindex="-1">' + (won ? (sc.over === 0 ? 'Right on par!' : 'Solved, ' + sc.label + ' over par') : esc(S.lost)) + '</h2>' +
+        '<div class="score-big ' + (atPar ? 'is-par' : won ? '' : 'is-x') + '" aria-hidden="true">' + esc(sc.label) + '</div>' +
+        '<h2 id="sheetTitle" tabindex="-1">' + (won ? (atPar ? 'Right on par!' : 'Solved, ' + sc.label + ' over par') : esc(S.lost)) + '</h2>' +
         '<p>' + esc(won ? sub : plural(st.inc, S.miss) + ' · ' + plural(st.hints, 'hint') + ' · Par ' + pz.par) + '</p>' +
       '</header>' +
       '<div class="sheet-body">' +
-        '<section class="sheet-sec" aria-labelledby="shTitle"><h3 id="shTitle">Share <span>No spoilers</span></h3>' +
+        secOpen('shTitle') + '<h3 id="shTitle">Share <span>No spoilers</span></h3>' +
           '<pre class="share-preview" id="sharePreview">' + esc(share) + '</pre>' +
           '<div class="share-btns">' +
-            (navigator.share ? '<button type="button" class="btn btn-gold btn-lg" id="btnShare"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>Share</button>' : '') +
-            '<button type="button" class="btn ' + (navigator.share ? '' : 'btn-gold ') + 'btn-lg" id="btnCopy"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>Copy result</span></button>' +
+            (navigator.share ? '<button type="button" class="btn btn-accent btn-lg" id="btnShare"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>Share</button>' : '') +
+            '<button type="button" class="btn ' + (navigator.share ? '' : 'btn-accent ') + 'btn-lg" id="btnCopy"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>Copy result</span></button>' +
           '</div>' +
         '</section>' +
-        (practice
-          ? '<p class="practice-note">Practice replay of puzzle #' + pz.n + '. It doesn\'t count toward your stats or streaks.</p>'
-          : '<section class="sheet-sec" aria-labelledby="stTitle"><h3 id="stTitle">Your stats</h3>' + statTiles(loadStats()) + '</section>') +
-        '<section class="sheet-sec" aria-labelledby="myTitle"><h3 id="myTitle">Your chain <span>' + plural(sc.links, 'link') + '</span></h3>' +
+        (practice ? '<p class="practice-note sheet-sec" style="--i:' + (sec++) + '">Practice replay of puzzle #' + pz.n + '. It doesn\'t count toward your stats or streaks.</p>'
+          : secOpen('stTitle') + '<h3 id="stTitle">Your stats</h3>' + statTiles(loadStats()) + '</section>') +
+        secOpen('myTitle') + '<h3 id="myTitle">Your chain <span>' + plural(sc.links, 'link') + '</span></h3>' +
           '<ol class="mini-list">' + miniChain(st.chain, myLinks, st.end) +
           (won ? '' : '<li class="ml-link miss">' + esc(S.lost) + '</li><li><span class="ml-dot e" aria-hidden="true">' + posAbbr(H.player(index, st.end)) + '</span><span class="ml-name">' + esc(H.player(index, st.end).name) + '</span></li>') +
           '</ol></section>' +
-        '<section class="sheet-sec" aria-labelledby="opTitle"><h3 id="opTitle">One optimal chain <span>' + plural(pz.par, 'link') + '</span></h3>' +
+        secOpen('opTitle') + '<h3 id="opTitle">One optimal chain <span>' + plural(pz.par, 'link') + '</span></h3>' +
           '<ol class="mini-list">' + miniChain(pz.chain, optLinks, pz.end) + '</ol>' +
           '<p class="optimal-note">' + (pz.optimal === 1 ? 'Only 1 optimal chain exists.' : esc(Number(pz.optimal).toLocaleString('en-US')) + ' optimal chains exist.') + '</p>' +
         '</section>' +
-        '<div class="countdown"><span>Next puzzle in</span><time id="countdown">--:--:--</time></div>' +
+        '<div class="countdown sheet-sec" style="--i:' + (sec++) + '"><span>Next puzzle in</span><time id="countdown">--:--:--</time></div>' +
       '</div>';
 
     $('#btnCopy').addEventListener('click', () => copyText(share));
     const sb = $('#btnShare');
-    if (sb) sb.addEventListener('click', () => {
-      navigator.share({ text: share }).catch((err) => { if (err && err.name !== 'AbortError') copyText(share); });
-    });
+    if (sb) sb.addEventListener('click', () => { navigator.share({ text: share }).catch((err) => { if (err && err.name !== 'AbortError') copyText(share); }); });
     rollAt = nextRollover();
     clearInterval(countdownTimer);
     tickCountdown();
     countdownTimer = setInterval(tickCountdown, 1000);
-    openDialog(sheet, document.activeElement && document.activeElement !== document.body ? document.activeElement : $('#btnSeeResults'));
+    const from = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+    openSheet(sheet, from || $('#btnSeeResults'));
     $('#sheetScroll').scrollTop = 0;
     $('#sheetTitle').focus({ preventScroll: true });
+    animateCounts($('#sheetScroll'), 420);
   }
-  sheet.addEventListener('close', () => { clearInterval(countdownTimer); });
+  sheet.addEventListener('close', () => clearInterval(countdownTimer));
 
   function copyText(text) {
     const ok = () => {
@@ -857,34 +935,30 @@
       ta.remove();
       if (done) ok(); else toast('Couldn\'t copy', 'warn', 'Select the text above and copy it.');
     };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback);
-    else fallback();
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
   }
 
   /* ------------------------------------------------------------ stats page */
   function renderStatsPage() {
-    const stats = loadStats();
-    const total = stats.played;
+    const stats = loadStats(), total = stats.played;
     const buckets = [['0', 'Par'], ['1', '+1'], ['2', '+2'], ['3', '+3'], ['X', 'X']];
     const max = Math.max(1, ...buckets.map((b) => stats.hist[b[0]] || 0));
     const todayState = store.get(stateKey('daily', todayN), null);
-    let todayBucket = null;
-    if (todayState && todayState.status !== 'playing' && stats.results[todayN]) {
-      const sc = H.score(todayState);
-      todayBucket = sc.won ? String(Math.min(3, sc.over)) : 'X';
-    }
+    let mark = null;
+    if (todayState && todayState.status !== 'playing' && stats.results[todayN]) { const sc = H.score(todayState); mark = sc.won ? String(Math.min(3, sc.over)) : 'X'; }
     $('#statsBody').innerHTML =
       '<section class="card page-card" aria-labelledby="sumTitle"><h2 id="sumTitle">Summary</h2>' + statTiles(stats) + '</section>' +
       '<section class="card page-card" aria-labelledby="histTitle"><h2 id="histTitle">Strokes vs par <small>' + plural(total, 'daily game') + '</small></h2>' +
         (total ? '<ol class="hist">' + buckets.map((b, i) => {
-          const c = stats.hist[b[0]] || 0;
-          return '<li class="' + (b[0] === '0' ? 'is-par' : '') + '"><span class="h-lab">' + b[1] + (b[0] === '3' ? '<span class="sr-only"> or more</span>' : '') + '</span>' +
-            '<span class="h-bar' + (todayBucket === b[0] || (c > 0 && !todayBucket && c === max) ? ' on' : '') + '" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '">' + c + '</span></li>';
+          const c = stats.hist[b[0]] || 0, on = mark ? mark === b[0] : c > 0 && c === max;
+          return '<li class="' + (b[0] === '0' ? 'is-par ' : '') + (on ? 'on' : '') + '"><span class="h-lab">' + b[1] + (b[0] === '3' ? '<span class="sr-only"> or more</span>' : '') + '</span>' +
+            '<span class="h-track"><span class="h-bar" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '"></span><span class="h-num" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '">' + c + '</span></span></li>';
         }).join('') + '</ol>' : '<p class="empty-note">Finish a daily puzzle to start your record.</p>') +
       '</section>' +
-      '<div class="back-row"><a class="btn btn-primary" href="#">Back to today\'s puzzle</a></div>';
+      '<div class="back-row"><a class="btn btn-accent" href="#">Back to today\'s puzzle</a></div>';
     setKicker(todayKicker());
     showView('stats');
+    animateCounts($('#statsBody'), 80);
   }
 
   /* ------------------------------------------------------------ archive */
@@ -902,17 +976,15 @@
       if (!p) continue;
       const daily = store.get(stateKey('daily', n), null), practice = store.get(stateKey('practice', n), null);
       const vd = validState(daily, p) ? daily : null, vp = validState(practice, p) ? practice : null;
+      const isToday = n === todayN;
       let b = badgeFor(vd), note = '';
       if (vd && vd.status !== 'playing') note = 'Daily';
-      else if (badgeFor(vp) && n !== todayN) { b = badgeFor(vp); note = 'Practice'; }
+      else if (!isToday && badgeFor(vp)) { b = badgeFor(vp); note = 'Practice'; }
       if (!b) b = { cls: 'play', text: 'Play' };
-      const isToday = n === todayN;
       html += '<li><a class="arch-row' + (isToday ? ' today' : '') + '" href="#' + n + '" style="--i:' + i + '" aria-label="Puzzle ' + n + ', ' + esc(fmtDate(p.date, true)) + ', par ' + p.par + (p.theme ? ', ' + esc(p.theme) : '') + '. ' + esc(b.text) + (note ? ' (' + note + ')' : '') + '">' +
         '<span class="arch-n">#' + n + '</span>' +
-        '<span class="arch-who"><strong>' + esc(fmtDate(p.date)) + (isToday ? ' <span class="today-tag">· Today</span>' : '') + '</strong>' +
-          '<small>Par ' + p.par + (p.theme ? ' · ' + esc(p.theme) : '') + '</small></span>' +
-        '<span class="badge-wrap"><span class="badge ' + b.cls + '">' + esc(b.text) + '</span>' + (note && b.cls !== 'play' ? '<small>' + note + '</small>' : '') + '</span>' +
-        '</a></li>';
+        '<span class="arch-who"><strong>' + esc(fmtDate(p.date)) + (isToday ? ' <span class="today-tag">· Today</span>' : '') + '</strong><small>Par ' + p.par + (p.theme ? ' · ' + esc(p.theme) : '') + '</small></span>' +
+        '<span class="badge-wrap"><span class="badge ' + b.cls + '">' + esc(b.text) + '</span>' + (note ? '<small>' + note + '</small>' : '') + '</span></a></li>';
     }
     $('#archiveList').innerHTML = html || '<li class="empty-note">No puzzles yet.</li>';
     setKicker(todayKicker());
@@ -922,49 +994,44 @@
   /* ------------------------------------------------------------ how to play / about */
   const dlgHelp = $('#dlgHelp'), dlgAbout = $('#dlgAbout');
   function helpHTML() {
-    const life = S.life || 'down', lives = S.lives;
-    const range = playersJson && playersJson.seasons ? playersJson.seasons.join('–') : '';
     return '<p><strong>' + esc(S.tagline) + '</strong> A new puzzle drops every day at midnight Eastern.</p>' +
       '<ol class="steps">' +
-        '<li>You get a <strong>Start</strong> and a <strong>Finish</strong> player. Add players one at a time to build a chain between them.</li>' +
-        '<li>Each player you add must have been a <strong>teammate</strong> of the last one: same team, same season. When your last player was a teammate of the Finish player, you\'ve solved it.</li>' +
-        '<li><strong>Par</strong> is the fewest links possible. Match it for a perfect score; every extra link is +1.</li>' +
-        '<li>You have <strong>' + H.DOWNS + ' ' + esc(lives) + '</strong>. A guess that wasn\'t a teammate is an ' + esc(S.miss) + ' and costs a ' + esc(life) + '. Lose them all and it\'s a ' + esc(S.lost.toLowerCase()) + '.</li>' +
-        '<li><strong>Undo</strong> is free. A <strong>hint</strong> names the team and season of the next link, and costs a ' + esc(life) + '.</li>' +
+        '<li style="--i:0">You get a <strong>Start</strong> and a <strong>Finish</strong> player. Add players one at a time to build a chain between them.</li>' +
+        '<li style="--i:1">Each player you add must have been a <strong>teammate</strong> of the last one: same team, same season. When your last player was a teammate of the Finish player, you\'ve solved it.</li>' +
+        '<li style="--i:2"><strong>Par</strong> is the fewest links possible. Match it for a perfect score; every extra link is +1.</li>' +
+        '<li style="--i:3">You have <strong>' + H.DOWNS + ' ' + esc(LIVES) + '</strong>. A guess that wasn\'t a teammate is an ' + esc(S.miss) + ' and costs a ' + esc(LIFE) + '. Lose them all and it\'s a ' + esc(S.lost.toLowerCase()) + '.</li>' +
+        '<li style="--i:4"><strong>Undo</strong> is free. A <strong>hint</strong> names the team and season of the next link, and costs a ' + esc(LIFE) + '.</li>' +
       '</ol>' +
       '<div class="mini-chain" aria-label="Example">' +
-        '<div class="mc-node"><span class="mc-dot">S</span>Start player</div>' +
-        '<div class="mc-link">Teammates on the 2015 team</div>' +
-        '<div class="mc-node"><span class="mc-dot">2</span>A player you add</div>' +
-        '<div class="mc-link">Teammates on the 2019 team</div>' +
+        '<div class="mc-node"><span class="mc-dot s">S</span>Start player</div><div class="mc-link">Teammates on the 2015 team</div>' +
+        '<div class="mc-node"><span class="mc-dot">2</span>A player you add</div><div class="mc-link">Teammates on the 2019 team</div>' +
         '<div class="mc-node"><span class="mc-dot g">F</span>Finish player</div>' +
       '</div>' +
-      '<p class="fine">Seasons ' + esc(range) + ', regular season and playoffs. Your progress and stats stay on this device.</p>' +
-      '<button type="button" class="btn btn-gold btn-wide btn-lg" data-close>Let\'s play</button>';
+      '<p class="fine">Seasons ' + esc(seasonsRange()) + ', regular season and playoffs. Your progress and stats stay on this device.</p>' +
+      '<button type="button" class="btn btn-accent btn-wide btn-lg" data-close>Let\'s play</button>';
   }
   function aboutHTML() {
     const built = playersJson && playersJson.built ? fmtDate(playersJson.built, true) : 'unknown';
     const att = S.attribution || { text: 'Player data from nflverse (CC-BY 4.0)', href: 'https://github.com/nflverse' };
-    return '<p><strong>' + esc(S.title) + '</strong> is a free daily teammate-chain puzzle. ' + esc(S.tagline) + '</p>' +
+    return '<p><strong>' + esc(S.title) + '</strong> is a free daily teammate-chain puzzle. ' + esc(S.tagline) + (S.mode ? ' You\'re playing the ' + esc(S.mode) + ' mode.' : '') + '</p>' +
       '<p>' + esc(S.disclaimer) + '</p>' +
-      '<p><a href="' + esc(att.href) + '" rel="noopener">' + esc(att.text) + '</a>. Team names and colours are shown as plain text chips; there are no logos or photos.</p>' +
+      '<p><a href="' + esc(att.href) + '" rel="noopener">' + esc(att.text) + '</a>. Teams appear as plain colour chips with their abbreviation; there are no logos or photos.</p>' +
       '<p>No accounts, no ads, no tracking. Your games and stats are kept only in this browser\'s local storage.</p>' +
-      '<p class="fine">Data built ' + esc(built) + (playersJson && playersJson.seasons ? ' · seasons ' + esc(playersJson.seasons.join('–')) : '') + ' · ' + esc(index ? index.n.toLocaleString('en-US') : '') + ' players</p>' +
+      '<p class="fine">Data built ' + esc(built) + (seasonsRange() ? ' · seasons ' + esc(seasonsRange()) : '') + (index ? ' · ' + esc(index.n.toLocaleString('en-US')) + ' players' : '') + '</p>' +
       '<div class="legal-links"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="support.html">Support</a></div>';
   }
-  $('#btnHelp').addEventListener('click', (e) => { $('#helpBody').innerHTML = helpHTML(); openDialog(dlgHelp, e.currentTarget); });
-  $('#btnAbout').addEventListener('click', (e) => { $('#aboutBody').innerHTML = aboutHTML(); openDialog(dlgAbout, e.currentTarget); });
+  $('#btnHelp').addEventListener('click', (e) => { $('#helpBody').innerHTML = helpHTML(); openSheet(dlgHelp, e.currentTarget); });
+  $('#btnAbout').addEventListener('click', (e) => { $('#aboutBody').innerHTML = aboutHTML(); openSheet(dlgAbout, e.currentTarget); });
   dlgHelp.addEventListener('close', () => store.set(KEY('seen-help'), 1));
   function maybeFirstVisitHelp() {
-    if (store.get(KEY('seen-help'), 0)) return;
-    if (document.querySelector('dialog[open]')) return;
+    if (store.get(KEY('seen-help'), 0) || document.querySelector('dialog[open]')) return;
     $('#helpBody').innerHTML = helpHTML();
-    openDialog(dlgHelp, input);
+    openSheet(dlgHelp, input);
   }
 
   /* ------------------------------------------------------------ misc chrome */
   $('#brand').addEventListener('click', (e) => {
-    if (!location.hash || location.hash === '#') { e.preventDefault(); route(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    if (!location.hash || location.hash === '#') { e.preventDefault(); route(); window.scrollTo({ top: 0, behavior: REDUCE.matches ? 'auto' : 'smooth' }); }
   });
   let scrollRaf = 0;
   window.addEventListener('scroll', () => {
@@ -978,7 +1045,7 @@
     if (today !== was && (!location.hash || location.hash === '#')) { toast('A new puzzle is ready', 'good'); route(); }
   });
 
-  // test hook (read-only): lets automated checks see the current state
+  // read-only test hook: lets automated checks see the current state
   window.__chainmates = { get state() { return game && JSON.parse(JSON.stringify(game.state)); }, get mode() { return game && game.mode; } };
 
   load();

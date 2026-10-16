@@ -7,6 +7,8 @@
     nfl: {
       title: 'Chainmates',
       mode: 'Football',
+      // Mode styling hook: <html data-sport="nfl" data-texture="field"> picks the mode accent and hero texture in app.css.
+      texture: 'field',
       emoji: '\u{1F3C8}',
       data: 'data/nfl/',
       lives: 'downs',
