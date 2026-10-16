@@ -400,17 +400,12 @@
       '</span>';
   }
   const modeNote = (m) => (m === 'hard' ? 'No teams shown' : 'Every team shown');
-  function renderHero(opts) {
-    opts = opts || {};
+  const matchupHTML = () => heroCard(H.player(index, game.puzzle.start), 'Start', 'pcard-start') +
+    '<div class="gap-link" aria-hidden="true"><span class="knot">' + LINK_SVG + '</span></div>' + heroCard(H.player(index, game.puzzle.end), 'Finish', 'pcard-end');
+  function renderHero() {
     const pz = game.puzzle, st = game.state, practice = game.mode === 'practice';
     const a = H.player(index, pz.start), b = H.player(index, pz.end);
     const hero = $('#hero');
-    const cards = heroCard(a, 'Start', 'pcard-start') + '<div class="gap-link" aria-hidden="true"><span class="knot">' + LINK_SVG + '</span></div>' + heroCard(b, 'Finish', 'pcard-end');
-    if (opts.cardsOnly) {
-      $('#matchup').innerHTML = cards;
-      $('#heroFoot').innerHTML = parBadgeHTML(st) + modeCtlHTML(st);
-      return;
-    }
     const theme = pz.theme || pz.game ? '<span class="hero-theme">' + (pz.theme ? '<span class="theme-text">' + esc(pz.theme) + '</span>' : '') + gameHTML(pz.game) + '</span>' : '';
     $('#heroInner').innerHTML =
       '<div class="hero-kicker">' +
@@ -419,10 +414,10 @@
         theme +
       '</div>' +
       '<h1 class="sr-only" id="heroTitle">Puzzle No. ' + pz.n + ': connect ' + esc(a.name) + ' and ' + esc(b.name) + ' through teammates.</h1>' +
-      '<div class="matchup" id="matchup">' + cards + '</div>' +
+      '<div class="matchup" id="matchup">' + matchupHTML() + '</div>' +
       '<div class="hero-foot" id="heroFoot">' + parBadgeHTML(st) + modeCtlHTML(st) + '</div>';
     hero.classList.remove('intro'); reflow(hero); hero.classList.add('intro');
-    setKicker('<span class="k-word">' + (practice ? 'Practice, ' : '') + '</span><b>No. ' + pz.n + '</b>' + (pz.theme ? '<span class="k-theme"> · ' + esc(pz.theme) + '</span>' : ''));
+    setKicker('<span class="k-word">' + (practice ? 'Practice, ' : '') + '</span><b>No. ' + pz.n + '</b>');
   }
 
   /* ------------------------------------------------------------ chain */
@@ -443,8 +438,7 @@
       : posAbbr(p);
     return '<div class="node node-' + kind + '" style="--k:' + k + '">' +
       '<span class="node-dot" aria-hidden="true">' + dot + '</span>' +
-      '<span class="node-who"><strong>' + esc(p.name) + '</strong><small>' + (tag ? '<span class="node-tag">' + esc(tag) + '</span>' : '') + esc(metaLine(p)) + '</small></span>' +
-      '<span class="chips">' + chipsFor(p, 3) + '</span></div>';
+      '<span class="node-who"><strong>' + esc(p.name) + '</strong><small>' + (tag ? '<span class="node-tag">' + esc(tag) + '</span>' : '') + esc(metaLine(p)) + '</small>' + careerHTML(p) + '</span></div>';
   }
 
   function renderGame(opts) {
@@ -461,7 +455,7 @@
     }).join('');
     if (opts.animate && won && body.length > 1) $('#chain').lastElementChild.classList.add('enter');
 
-    $('#chainMeta').innerHTML = '<b>' + plural(sc.links, 'link') + '</b> · Par ' + st.par;
+    $('#chainMeta').innerHTML = '<b>' + plural(sc.links, 'link') + '</b> · Par ' + st.par + ' · ' + MODE_NAME[sc.mode];
 
     // slot: the search while playing
     const last = H.player(index, lastId());
@@ -486,8 +480,9 @@
       }
     } else pill.dataset.key = '';
 
-    // target (the finish marker turns brass only for a birdie)
+    // target (the finish marker turns brass for a birdie; an eagle gilds the whole chain)
     $('#chainCard').classList.toggle('is-birdie', won && sc.over < 0);
+    $('#chainCard').classList.toggle('is-eagle', won && sc.over <= -2);
     const end = H.player(index, st.end), tgt = $('#target');
     tgt.className = 'target' + (opts.animate && won ? ' enter' : '');
     tgt.innerHTML = won
@@ -499,8 +494,8 @@
     strip.hidden = playing;
     if (!playing) {
       const tier = tierOf(sc);
-      const line = !won ? plural(st.inc, S.miss) + ' · Par ' + st.par
-        : 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par + (sc.over < 0 ? ' · ' + underText(sc.over) : sc.links > sc.best ? ' · shortest is ' + sc.best : '');
+      const line = (!won ? plural(st.inc, S.miss) + ' · Par ' + st.par
+        : 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par + (sc.over < 0 ? ' · ' + underText(sc.over) : sc.links > sc.best ? ' · shortest is ' + sc.best : '')) + ' · ' + MODE_NAME[sc.mode];
       strip.innerHTML = '<div><div class="rs-score is-' + tier + '">' + esc(won ? sc.label : S.lost) + '</div>' +
         '<small>' + esc(line) + '</small></div>' +
         '<span class="rs-actions">' +
@@ -510,6 +505,7 @@
     }
 
     renderControls();
+    if (!playing && $('#modeCtl')) $('#heroFoot').innerHTML = parBadgeHTML(st) + modeCtlHTML(st);   // the game just ended: the switch becomes "Played on …"
     $('#ruleNote').textContent = playing
       ? 'Teammates = ' + (S.rule || 'same team, same season') + ' (' + seasonsRange() + ').'
       : (game.mode === 'practice' ? 'Practice replay: not counted in your stats.' : '');
@@ -609,17 +605,18 @@
     haptic('solve');
     busy = true;
     const nodes = game.state.chain.length, step = tok('--lock-step');
-    const birdie = H.score(game.state).over < 0;
+    const over = H.score(game.state).over, birdie = over < 0, eagle = over <= -2;
     const landing = tok('--dur-l') + 140;
     setTimeout(() => {
-      card.classList.remove('lock', 'birdie-shine'); reflow(card);
+      card.classList.remove('lock', 'birdie-shine', 'eagle-lock'); reflow(card);
       card.style.setProperty('--shine-delay', Math.round(step * (nodes - 1) * 0.6) + 'ms');
       card.classList.add('lock');
       if (birdie) card.classList.add('birdie-shine');
+      if (eagle) card.classList.add('eagle-lock');    // the chain re-draws in brass, link by link, then the sweep
     }, landing);
-    const total = landing + step * nodes + tok('--dur-l') + (birdie ? 380 : 120);
+    const total = landing + step * nodes + tok('--dur-l') + (eagle ? 900 : birdie ? 380 : 120);
     setTimeout(() => { busy = false; openResults(); }, total);
-    setTimeout(() => card.classList.remove('lock', 'birdie-shine'), total + 1400);
+    setTimeout(() => card.classList.remove('lock', 'birdie-shine', 'eagle-lock'), total + 1400);
   }
 
   /** Incompletion: the input shakes, a red link snaps off the chain and a down drains. */
@@ -684,6 +681,78 @@
     announce('Hint. ' + hintPlain(r.hint, game.state.n, game.state.chain.length));
   });
 
+  /* ------------------------------------------------------------ difficulty switch
+   * Hard -> easy is allowed any time while playing (confirmed once you've moved: it reveals every team and lowers par).
+   * Easy -> hard only before the first move; the core says no otherwise ('started'). Every pick is also the preference for new games. */
+  const dlgMode = $('#dlgMode');
+  const hasMoved = (st) => st.chain.length > 1 || st.log.length > 0;
+  $('#hero').addEventListener('click', (e) => {
+    const b = e.target.closest('#modeCtl button[data-mode]');
+    if (b && game && !busy) requestMode(b.dataset.mode, b);
+  });
+  function requestMode(want, from) {
+    const st = game.state;
+    if (want === modeOf(st) || st.status !== 'playing') return;
+    if (want === 'easy' && hasMoved(st)) {
+      $('#modeDesc').innerHTML = 'You\'ll see every player\'s teams and years. Par drops from <b>' + st.par + '</b> to <b>' + H.parFor(game.puzzle, 'easy') + '</b>.';
+      returnFocus.set(dlgMode, from);
+      dlgMode.showModal();
+      return;
+    }
+    applyMode(want);
+  }
+  dlgMode.addEventListener('close', () => { if (dlgMode.returnValue === 'ok' && game) applyMode('easy'); });
+
+  function syncModeCtl(m, par) {
+    const ctl = $('#modeCtl');
+    if (ctl) {
+      ctl.dataset.on = m;
+      ctl.querySelectorAll('button[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+    }
+    const note = $('#modeNote');
+    if (note) { note.textContent = modeNote(m); note.classList.remove('swap'); reflow(note); note.classList.add('swap'); }
+    const badge = $('#parBadge');
+    if (badge && par != null) {
+      badge.setAttribute('aria-label', 'Par ' + par + ' links');
+      const n = badge.querySelector('.pb-n');
+      n.textContent = par;
+      n.classList.remove('bump'); reflow(n); n.classList.add('bump');
+    }
+  }
+  /** Re-render everything that shows teams, then let the career lines slide in (easy) or out (hard). */
+  function applyMode(want) {
+    // Before the first move a switch is just a fresh game in the other mode (setMode logs hard -> easy, which would lock easy in).
+    const r = hasMoved(game.state) ? H.setMode(game.state, want) : { ok: true, state: H.newGame(game.puzzle, { mode: want }) };
+    if (!r.ok) {
+      if (r.reason === 'started') {
+        setPrefMode(want);
+        const ctl = $('#modeCtl');
+        if (ctl) { ctl.classList.remove('nope'); reflow(ctl); ctl.classList.add('nope'); }
+        toast('Hard mode starts fresh', 'warn', 'Next puzzle, or replay from the archive.');
+      }
+      return;
+    }
+    setPrefMode(want);
+    const view = $('#viewGame');
+    const rerender = () => {
+      game.state = r.state; save();
+      $('#matchup').innerHTML = matchupHTML();
+      renderGame();
+      if (!acList.hidden && input.value.trim()) runSearch();
+    };
+    syncModeCtl(want, r.state.par);
+    announce(MODE_NAME[want] + ' mode. ' + (want === 'easy' ? 'Every team is shown.' : 'No teams are shown.') + ' Par ' + r.state.par + '.');
+    view.classList.remove('careers-in', 'careers-out');
+    if (want === 'easy' || REDUCE.matches) {
+      rerender();
+      if (want === 'easy') { reflow(view); view.classList.add('careers-in'); setTimeout(() => view.classList.remove('careers-in'), 900); }
+      return;
+    }
+    busy = true;
+    view.classList.add('careers-out');
+    setTimeout(() => { view.classList.remove('careers-out'); rerender(); busy = false; }, tok('--dur-m'));
+  }
+
   /* ------------------------------------------------------------ autocomplete */
   const input = $('#guess'), acList = $('#acList'), clearBtn = $('#guessClear');
   // acChosen: the player moved the highlight themselves (arrows / mouse), so Enter means that row.
@@ -731,8 +800,8 @@
       const endId = game.state.end;
       acList.innerHTML = '<li class="ac-hl" role="presentation" aria-hidden="true"></li>' + acItems.map((p, i) =>
         '<li class="ac-row" role="option" id="ac-' + i + '" data-id="' + esc(p.id) + '" aria-selected="' + (i === acActive) + '" style="--i:' + (wasOpen ? 0 : i) + '">' +
-        '<span><strong>' + highlight(p.name, q) + (p.id === endId ? '<span class="ac-tag">Finish</span>' : '') + '</strong><small>' + esc(metaLine(p)) + '</small></span>' +
-        '<span class="chips">' + chipsFor(p, 3) + '</span></li>').join('');
+        '<strong>' + highlight(p.name, q) + (p.id === endId ? '<span class="ac-tag">Finish</span>' : '') + '</strong><small>' + esc(metaLine(p)) + '</small>' +
+        careerHTML(p, 4) + '</li>').join('');
     }
     acList.hidden = false;
     input.setAttribute('aria-expanded', 'true');
@@ -969,7 +1038,8 @@
       const p = H.player(index, id);
       if (i > 0) { const l = links[i - 1]; html += '<li class="ml-link">' + chip(l.team, l.season) + 'Teammates on the ' + esc(H.teamLabel(index, l.team, l.season)) + '</li>'; }
       const cls = i === 0 ? 's' : id === endId ? 'e' + (brass ? ' brass' : '') : '';
-      html += '<li><span class="ml-dot ' + cls + '" aria-hidden="true">' + posAbbr(p) + '</span><span class="ml-name">' + esc(p.name) + '</span><span class="chips">' + chipsFor(p, 2) + '</span></li>';
+      // no per-player team chips here: each link line already names the team-season that joined them
+      html += '<li><span class="ml-dot ' + cls + '" aria-hidden="true">' + posAbbr(p) + '</span><span class="ml-name">' + esc(p.name) + '</span></li>';
     });
     return html;
   }
@@ -1012,23 +1082,27 @@
     const myLinks = [];
     for (let i = 1; i < st.chain.length; i++) myLinks.push(H.sharedTeams(index, st.chain[i - 1], st.chain[i])[0]);
     const optLinks = (pz.links || []).map((l) => ({ team: l[0], season: l[1] }));
-    const tier = tierOf(sc), best = sc.best, optimal = pz.chain.length - 1;
+    const tier = tierOf(sc), best = sc.best, optimal = pz.chain.length - 1, mode = sc.mode;
+    const optLabel = labelAt(st, optimal), optUnder = optimal < st.par;   // what the shortest chain scores in this mode
     // Zero counts are left out: "3 links · Par 3" reads better than "· 0 incompletions · 0 hints".
-    const sub = [plural(sc.links, 'link') + ' · Par ' + pz.par, won && sc.links > best ? 'shortest ' + best : '', st.inc ? plural(st.inc, S.miss) : '', st.hints ? plural(st.hints, 'hint') : ''].filter(Boolean).join(' · ');
+    const sub = [plural(sc.links, 'link') + ' · Par ' + st.par, won && sc.links > best ? 'shortest ' + best : '', st.inc ? plural(st.inc, S.miss) : '', st.hints ? plural(st.hints, 'hint') : ''].filter(Boolean).join(' · ');
+    const offBy = sc.links - best;   // links more than the shortest chain
     const headline = !won ? esc(S.lost)
-      : sc.over < 0 ? cap(underText(sc.over)) + '. The shortest chain there is.'
-      : sc.over === 0 ? (best < pz.par ? 'Solved at par, one link off a birdie.' : 'Right on par, the shortest chain there is.')
+      : sc.links <= best ? cap(underText(sc.over)) + '. ' + (mode === 'hard' ? 'The shortest chain there is, with no teams to go on.' : 'The shortest chain there is.')
+      : sc.over < 0 ? cap(underText(sc.over)) + ', one link off ' + article(optLabel.toLowerCase()) + '.'
+      : sc.over === 0 ? (optUnder ? 'Solved at par, ' + spareWord(offBy) + ' link' + (offBy === 1 ? '' : 's') + ' off ' + article(optLabel.toLowerCase()) + '.' : 'Right on par, the shortest chain there is.')
       : 'Solved, ' + sc.over + ' over par';
+    const EAGLE_MARK = tier === 'eagle' ? '<svg class="eagle-mark" viewBox="0 0 80 40" width="58" height="29" aria-hidden="true" fill="none" stroke-width="4.5"><rect x="6" y="8" width="38" height="24" rx="12" stroke="var(--brass)"/><rect x="36" y="8" width="38" height="24" rx="12" stroke="var(--brass-ink)"/></svg>' : '';
     let sec = 0;
     const secOpen = (id) => '<section class="sheet-sec" style="--i:' + (sec++) + '" aria-labelledby="' + id + '">';
 
     $('#sheetScroll').innerHTML =
       '<header class="sheet-hero" data-drag>' +
         '<button type="button" class="close-btn" data-close aria-label="Close results">' + CLOSE_SVG + '</button>' +
-        '<span class="kicker">' + esc(S.title) + ' <b>No. ' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + (practice ? ' · Practice' : '') + '</span>' +
-        '<div class="score-big is-' + tier + '" aria-hidden="true">' + esc(sc.label) + '</div>' +
+        '<span class="kicker">' + esc(S.title) + ' <b>No. ' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + ' · ' + MODE_NAME[mode] + (practice ? ' · Practice' : '') + '</span>' +
+        EAGLE_MARK + '<div class="score-big is-' + tier + '" aria-hidden="true">' + esc(sc.label) + '</div>' +
         '<h2 id="sheetTitle" tabindex="-1">' + headline + '</h2>' +
-        '<p>' + esc(won ? sub : [plural(st.inc, S.miss), st.hints ? plural(st.hints, 'hint') : '', 'Par ' + pz.par].filter(Boolean).join(' · ')) + '</p>' +
+        '<p>' + esc(won ? sub : [plural(st.inc, S.miss), st.hints ? plural(st.hints, 'hint') : '', 'Par ' + st.par].filter(Boolean).join(' · ')) + '</p>' +
       '</header>' +
       '<div class="sheet-body">' +
         secOpen('shTitle') + '<h3 id="shTitle">Share <span>No spoilers</span></h3>' +
@@ -1041,13 +1115,13 @@
         (practice ? '<p class="practice-note sheet-sec" style="--i:' + (sec++) + '">Practice replay of puzzle #' + pz.n + '. It doesn\'t count toward your stats or streaks.</p>'
           : secOpen('stTitle') + '<h3 id="stTitle">Your stats</h3>' + statTiles(loadStats()) + '</section>') +
         secOpen('myTitle') + '<h3 id="myTitle">Your chain <span>' + (sc.links ? plural(sc.links, 'link') : 'No links') + '</span></h3>' +
-          '<ol class="mini-list">' + miniChain(st.chain, myLinks, st.end, tier === 'birdie') +
+          '<ol class="mini-list">' + miniChain(st.chain, myLinks, st.end, tier === 'birdie' || tier === 'eagle') +
           (won ? '' : '<li class="ml-link miss">' + esc(S.lost) + '</li><li><span class="ml-dot e" aria-hidden="true">' + posAbbr(H.player(index, st.end)) + '</span><span class="ml-name">' + esc(H.player(index, st.end).name) + '</span></li>') +
           '</ol></section>' +
         secOpen('opTitle') + '<h3 id="opTitle">One optimal chain <span>' + plural(optimal, 'link') + '</span></h3>' +
-          '<ol class="mini-list">' + miniChain(pz.chain, optLinks, pz.end, optimal < pz.par) + '</ol>' +
+          '<ol class="mini-list">' + miniChain(pz.chain, optLinks, pz.end, optUnder) + '</ol>' +
           '<p class="optimal-note">' + (pz.optimal === 1 ? 'Only 1 optimal chain exists' : esc(Number(pz.optimal).toLocaleString('en-US')) + ' optimal chains exist') +
-            (optimal < pz.par ? (pz.optimal === 1 ? '. It\'s the only birdie.' : ', and each one is a birdie.') : '.') + '</p>' +
+            (optUnder ? (pz.optimal === 1 ? '. It\'s the only ' + esc(optLabel.toLowerCase()) + ' on ' + mode + '.' : ', and each one is ' + article(esc(optLabel.toLowerCase())) + ' on ' + mode + '.') : '.') + '</p>' +
         '</section>' +
         '<div class="countdown sheet-sec" style="--i:' + (sec++) + '">' + (stale ? newPuzzleHTML() : '<span>Next puzzle in</span><time id="countdown">--:--:--</time>') + '</div>' +
       '</div>';
@@ -1096,17 +1170,18 @@
   /* ------------------------------------------------------------ stats page */
   function renderStatsPage() {
     const stats = loadStats(), total = stats.played;
-    const buckets = [['-1', 'Birdie'], ['0', 'Par'], ['1', '+1'], ['2', '+2'], ['3', '+3'], ['X', 'X']];
+    const buckets = [['-2', 'Eagle'], ['-1', 'Birdie'], ['0', 'Par'], ['1', '+1'], ['2', '+2'], ['3', '+3'], ['X', 'X']];
     const max = Math.max(1, ...buckets.map((b) => stats.hist[b[0]] || 0));
     const todayState = store.get(stateKey('daily', todayN), null);
     let mark = null;
-    if (todayState && todayState.status !== 'playing' && stats.results[todayN]) { const sc = H.score(todayState); mark = sc.won ? String(Math.max(-1, Math.min(3, sc.over))) : 'X'; }
+    if (todayState && todayState.status !== 'playing' && stats.results[todayN]) { const sc = H.score(todayState); mark = sc.won ? String(Math.max(-2, Math.min(3, sc.over))) : 'X'; }
     $('#statsBody').innerHTML =
       '<section class="card page-card" aria-labelledby="sumTitle"><h2 id="sumTitle">Summary</h2>' + statTiles(stats) + '</section>' +
       '<section class="card page-card" aria-labelledby="histTitle"><h2 id="histTitle">Strokes vs par <small>' + plural(total, 'daily game') + '</small></h2>' +
+        (stats.hist['-2'] ? '<p class="eagle-note"><b>' + plural(stats.hist['-2'], 'eagle') + '</b> on hard: the shortest chain with no teams to go on.</p>' : '') +
         (total ? '<ol class="hist">' + buckets.map((b, i) => {
           const c = stats.hist[b[0]] || 0, on = mark ? mark === b[0] : c > 0 && c === max;
-          return '<li class="' + (b[0] === '-1' ? 'is-birdie ' : b[0] === '0' ? 'is-par ' : '') + (on ? 'on' : '') + '"><span class="h-lab">' + b[1] + (b[0] === '3' ? '<span class="sr-only"> or more</span>' : b[0] === '-1' ? '<span class="sr-only"> or better</span>' : '') + '</span>' +
+          return '<li class="' + (b[0] === '-2' ? 'is-eagle ' : b[0] === '-1' ? 'is-birdie ' : b[0] === '0' ? 'is-par ' : '') + (on ? 'on' : '') + '"><span class="h-lab">' + b[1] + (b[0] === '3' ? '<span class="sr-only"> or more</span>' : b[0] === '-2' ? '<span class="sr-only"> or better</span>' : '') + '</span>' +
             '<span class="h-track"><span class="h-bar" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '"></span><span class="h-num" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '">' + c + '</span></span></li>';
         }).join('') + '</ol>' : '<p class="empty-note">Finish a daily puzzle to start your record.</p>') +
       '</section>' +
@@ -1123,6 +1198,8 @@
     const sc = H.score(st);
     return { cls: tierOf(sc), text: sc.label };
   }
+  /** "Daily · Hard" under an archive badge: which game it was, and the mode it was played in. */
+  const noteFor = (kind, st) => kind + ' · ' + MODE_NAME[modeOf(st)];
   function renderArchive() {
     const last = Math.min(todayN, puzzlesJson.puzzles.length);
     let html = '';
@@ -1133,13 +1210,15 @@
       const vd = validState(daily, p) ? daily : null, vp = validState(practice, p) ? practice : null;
       const isToday = n === todayN;
       // An unfinished daily from an earlier day can't be resumed (the archive opens a fresh practice replay), so it shows no badge.
-      let b = isToday || (vd && vd.status !== 'playing') ? badgeFor(vd) : null, note = '';
-      if (vd && vd.status !== 'playing') note = 'Daily';
-      else if (!isToday && badgeFor(vp)) { b = badgeFor(vp); note = 'Practice'; }
+      let b = isToday || (vd && vd.status !== 'playing') ? badgeFor(vd) : null, note = '', shown = null;
+      if (vd && vd.status !== 'playing') { note = noteFor('Daily', vd); shown = vd; }
+      else if (!isToday && badgeFor(vp)) { b = badgeFor(vp); note = noteFor('Practice', vp); shown = vp; }
+      else if (isToday && b) { note = MODE_NAME[modeOf(vd)]; shown = vd; }
       if (!b) b = { cls: 'play', text: 'Play →' };
-      html += '<li><a class="arch-row' + (isToday ? ' today' : '') + '" href="#' + n + '" style="--i:' + i + '" aria-label="Puzzle ' + n + ', ' + esc(fmtDate(p.date, true)) + ', par ' + p.par + (p.theme ? ', ' + esc(p.theme) : '') + '. ' + esc(b.text) + (note ? ' (' + note + ')' : '') + '">' +
+      const par = shown ? shown.par : H.parFor(p, prefMode());   // a game you've played shows its own par; otherwise the par you'd get
+      html += '<li><a class="arch-row' + (isToday ? ' today' : '') + '" href="#' + n + '" style="--i:' + i + '" aria-label="Puzzle ' + n + ', ' + esc(fmtDate(p.date, true)) + ', par ' + par + (p.theme ? ', ' + esc(p.theme) : '') + '. ' + esc(b.text) + (note ? ' (' + note + ')' : '') + '">' +
         '<span class="arch-n"><small>No.</small>' + n + '</span>' +
-        '<span class="arch-who"><strong>' + esc(fmtDate(p.date)) + (isToday ? ' <span class="today-tag">· Today</span>' : '') + '</strong><small>Par ' + p.par + (p.theme ? ' · ' + esc(p.theme) : '') + '</small></span>' +
+        '<span class="arch-who"><strong>' + esc(fmtDate(p.date)) + (isToday ? ' <span class="today-tag">· Today</span>' : '') + '</strong><small>Par ' + par + (p.theme ? ' · ' + esc(p.theme) : '') + '</small></span>' +
         '<span class="badge-wrap"><span class="badge ' + b.cls + '">' + esc(b.text) + '</span>' + (note ? '<small>' + note + '</small>' : '') + '</span></a></li>';
     }
     $('#archiveList').innerHTML = html || '<li class="empty-note">No puzzles yet.</li>';
@@ -1149,13 +1228,36 @@
 
   /* ------------------------------------------------------------ how to play / about */
   const dlgHelp = $('#dlgHelp'), dlgAbout = $('#dlgAbout');
+  /** The puzzle the help is about: the one on screen, else today's (your saved daily, or a fresh one in your preferred mode). */
+  function helpPuzzle() {
+    if (game && currentView === 'game') return { pz: game.puzzle, st: game.state };
+    const pz = puzzlesJson && H.puzzleByNumber(puzzlesJson, todayN);
+    if (!pz) return null;
+    const saved = store.get(stateKey('daily', pz.n), null);
+    return { pz, st: validState(saved, pz) ? saved : H.newGame(pz, { mode: prefMode() }) };
+  }
+  /** "Today's puzzle": the par ladder and the shortest chain, worded for the mode it's played in. */
+  function todayBlockHTML() {
+    const h = helpPuzzle();
+    if (!h) return '';
+    const { pz, st } = h, m = modeOf(st), spare = st.par - st.best;
+    const ladder = ['<b>Par ' + st.par + '</b>'].concat(underLadder(st).map((x) => x[1] + ' in ' + x[0])).join(' · ');
+    return '<section class="today-block" aria-labelledby="todayTitle">' +
+      '<h3 id="todayTitle">' + (pz.n === todayN ? 'Today\'s puzzle' : 'Puzzle No. ' + pz.n) + '<span>' + MODE_NAME[m] + ' mode</span></h3>' +
+      '<p class="ladder">' + ladder + '.</p>' +
+      '<p>' + esc(S.tagline) + ' The shortest chain takes <strong>' + plural(st.best, 'link') + '</strong>. Par gives you ' + spareWord(spare) + ' to spare' + (m === 'hard' ? ' on hard mode' : '') + '.</p>' +
+      '</section>';
+  }
   function helpHTML() {
-    return '<p class="lede">' + esc(S.tagline) + ' A new puzzle every day at midnight Eastern.</p>' +
+    const off = (k) => spareWord(H.MODES[k].parOffset);
+    return todayBlockHTML() +
+      '<p class="lede">' + esc(S.tagline) + ' A new puzzle every day at midnight Eastern.</p>' +
       '<ul class="rules">' +
         '<li style="--i:0"><span class="runin">The chain.</span>You get a Start and a Finish player. Add players one at a time; each must have been a <strong>teammate</strong> of the one before (' + esc(S.rule || 'same team, same season') + '). Reach a teammate of the Finish player and you\'ve solved it.</li>' +
-        '<li style="--i:1"><span class="runin">Par.</span>The fewest links possible, plus one to spare. Find the shortest chain for a <strong>birdie</strong>; every link over par is +1. Par or better keeps your bogey-free streak alive.</li>' +
-        '<li style="--i:2"><span class="runin">' + esc(cap(LIVES)) + '.</span>You have ' + H.DOWNS + '. A guess that wasn\'t a teammate is an ' + esc(S.miss) + ' and costs one. Lose them all and it\'s a ' + esc(S.lost.toLowerCase()) + '.</li>' +
-        '<li style="--i:3"><span class="runin">Help.</span>Undo is free. A hint reveals a team and a position for your next link, and costs a ' + esc(LIFE) + '.</li>' +
+        '<li style="--i:1"><span class="runin">Par.</span>The fewest links possible, plus some to spare. One link under par is a <strong>birdie</strong>, two under is an <strong>eagle</strong>, and every link over par is +1. Par or better keeps your bogey-free streak alive.</li>' +
+        '<li style="--i:2"><span class="runin">Modes.</span><strong>Hard</strong>, the default, shows no teams: just names, positions and years. Par is the shortest chain plus ' + off('hard') + ', so eagles are only possible on hard. <strong>Easy</strong> shows every team a player was on, with years, and par is the shortest plus ' + off('easy') + '. You can drop to easy mid-game; hard starts fresh.</li>' +
+        '<li style="--i:3"><span class="runin">' + esc(cap(LIVES)) + '.</span>You have ' + H.DOWNS + '. A guess that wasn\'t a teammate is an ' + esc(S.miss) + ' and costs one. Lose them all and it\'s a ' + esc(S.lost.toLowerCase()) + '.</li>' +
+        '<li style="--i:4"><span class="runin">Help.</span>Undo is free. A hint reveals a team and a position for your next link, and costs a ' + esc(LIFE) + '.</li>' +
       '</ul>' +
       '<p class="fine">Seasons ' + esc(seasonsRange()) + ', regular season and playoffs. Your progress and stats stay on this device.</p>' +
       '<button type="button" class="btn btn-ink btn-wide btn-lg" data-close>Start playing</button>';
@@ -1209,7 +1311,7 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) onNewDay(); });
 
   // read-only test hook: lets automated checks see the current state
-  window.__chainmates = { get state() { return game && JSON.parse(JSON.stringify(game.state)); }, get mode() { return game && game.mode; } };
+  window.__chainmates = { get state() { return game && JSON.parse(JSON.stringify(game.state)); }, get mode() { return game && game.mode; }, get difficulty() { return game && modeOf(game.state); } };
 
   load();
 })();

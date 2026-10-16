@@ -221,6 +221,18 @@
     </form>
   </dialog>
 
+  <!-- hard -> easy, mid-game -->
+  <dialog class="confirm" id="dlgMode" aria-labelledby="modeTitle" aria-describedby="modeDesc">
+    <form method="dialog">
+      <h2 id="modeTitle">Switch to easy?</h2>
+      <p id="modeDesc"></p>
+      <div class="confirm-actions">
+        <button class="btn" value="cancel">Stay on hard</button>
+        <button class="btn btn-primary" value="ok" id="modeOk">Switch to easy</button>
+      </div>
+    </form>
+  </dialog>
+
   <noscript><p class="noscript">Chainmates needs JavaScript to run.</p></noscript>
 </body>
 </html>

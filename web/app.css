@@ -1,7 +1,7 @@
 /* Chainmates web: an editorial puzzle page.
  * Newsprint paper, near-black ink, hairline rules. One signal colour (--accent) that comes from the mode
  * (football = chalk-line green; the brand default is safety orange) and is used only for actions and the live link.
- * Brass marks a birdie (under par) and nothing else; par is a solid ink finish. Red marks a miss. Type: Zilla Slab (display) + Libre Franklin (text).
+ * Brass marks under par and nothing else (a birdie in brass, an eagle in deeper, solid brass); par is a solid ink finish. Red marks a miss. Type: Zilla Slab (display) + Libre Franklin (text).
  * Radii: 6px and 10px only. Motion: one token set; transform/opacity only; no decorative loops. */
 
 /* ------------------------------------------------------------------ tokens */
@@ -14,7 +14,7 @@
   --ink: #1a1917;   --ink-2: #4a4740;   --ink-3: #6b665a;
   --rule: #dcd6c9;  --rule-2: #bab3a3;
   --accent: #e8590c; --accent-ink: #b0440a; --accent-soft: #fbe5d8; --on-accent: #ffffff;
-  --brass: #e2b33c;  --brass-ink: #855c00;
+  --brass: #e2b33c;  --brass-ink: #855c00; --brass-deep: #c99412; --brass-soft: #f3e2b4;
   --bad: #c42b1c;    --bad-soft: #f7e0dc;
   --scrim: rgba(26, 25, 23, .42);
   --lift: 0 10px 30px -12px rgba(26, 25, 23, .28);
@@ -45,7 +45,7 @@
     --ink: #ede9e0;   --ink-2: #bdb7ab;   --ink-3: #8b8579;
     --rule: #33302a;  --rule-2: #4b473f;
     --accent: #ff7a3d; --accent-ink: #ff9a6a; --accent-soft: #3a2216; --on-accent: #141311;
-    --brass-ink: #e9c25a;
+    --brass-ink: #e9c25a; --brass-deep: #f2c640; --brass-soft: #3a2f14;
     --bad: #ff6b5a; --bad-soft: #3b1b17;
     --scrim: rgba(0, 0, 0, .55);
     --lift: 0 12px 34px -10px rgba(0, 0, 0, .6);
@@ -58,7 +58,7 @@
   --ink: #ede9e0;   --ink-2: #bdb7ab;   --ink-3: #8b8579;
   --rule: #33302a;  --rule-2: #4b473f;
   --accent: #ff7a3d; --accent-ink: #ff9a6a; --accent-soft: #3a2216; --on-accent: #141311;
-  --brass-ink: #e9c25a;
+  --brass-ink: #e9c25a; --brass-deep: #f2c640; --brass-soft: #3a2f14;
   --bad: #ff6b5a; --bad-soft: #3b1b17;
   --scrim: rgba(0, 0, 0, .55);
   --lift: 0 12px 34px -10px rgba(0, 0, 0, .6);
@@ -132,24 +132,40 @@ b, strong { font-weight: 700; }
 .hero-kicker b { color: var(--ink); font-weight: 700; }
 .hero-status { color: var(--accent-ink); font-weight: 700; }
 .hero-status.practice { color: var(--ink-2); }
+/* a themed day: the theme on its own line; a game night adds the matchup as two ClubChips ("KC at LV") */
+.hero-theme { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; color: var(--ink); font-weight: 600; }
+.theme-game { display: inline-flex; align-items: center; gap: 6px; }
+.theme-game .at { color: var(--ink-3); font-size: 12.5px; font-weight: 500; font-style: italic; }
+.theme-game .club { height: 20px; min-width: 34px; font-size: 10px; }
 .matchup { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); padding: 16px 0 14px; }
 .pcard { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .pcard-end { text-align: right; align-items: flex-end; }
 .pcard-label { color: var(--ink-3); font-size: 12.5px; font-weight: 600; }
 .pcard-name { font-family: var(--font-display); font-weight: 700; font-size: 27px; line-height: 1.02; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .pcard-meta { color: var(--ink-2); font-size: 13px; }
-.pcard .chips { margin-top: 2px; }
-.pcard-end .chips { justify-content: flex-end; }
-.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.pcard .career { margin-top: 2px; }
+.pcard-end .career { justify-content: flex-end; }
 .gap-link { position: relative; display: grid; place-items: center; }
 .gap-link::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 50%; width: 1px; background: var(--rule); }
 .gap-link .knot { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--paper); border: 1px solid var(--rule-2); color: var(--ink); }
 .hero-foot { display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
-.par-badge { flex: none; display: inline-grid; justify-items: center; align-content: center; gap: 2px; min-width: 64px; padding: 5px 9px 5px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px var(--ink); color: var(--ink); line-height: 1.05; }
-.pb-par { font-family: var(--font-display); font-weight: 700; font-size: 19px; }
-.pb-best { padding-top: 3px; border-top: 1px solid var(--rule-2); color: var(--brass-ink); font-size: 11.5px; font-weight: 700; white-space: nowrap; }
-.hero-title { font-size: 14px; line-height: 1.35; color: var(--ink-2); font-weight: 400; }
-.hero-title b { color: var(--ink); font-weight: 600; }
+.par-badge { flex: none; display: inline-grid; justify-items: center; align-content: center; min-width: 70px; height: 36px; padding: 0 10px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px var(--ink); color: var(--ink); line-height: 1; }
+.pb-par { font-family: var(--font-display); font-weight: 700; font-size: 20px; white-space: nowrap; }
+.pb-n { display: inline-block; }
+.pb-n.bump { animation: numSwap var(--dur-l) var(--ease-spring) both; }
+.mode-note { flex: 1 1 auto; min-width: 0; color: var(--ink-2); font-size: 13px; }
+.mode-note.swap { animation: wordIn var(--dur-m) var(--ease-out) both; }
+.mode-played { margin-left: auto; color: var(--ink-2); font-size: 13px; }
+.mode-played b { color: var(--ink); font-weight: 700; }
+/* Hard / Easy: one hairline frame, an ink block slides under the chosen word */
+.modes { position: relative; flex: none; display: grid; grid-template-columns: 1fr 1fr; height: 36px; padding: 3px; border-radius: var(--r-s); box-shadow: inset 0 0 0 1px var(--rule-2); background: var(--card); }
+.modes-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 4px; background: var(--ink); transition: transform var(--dur-l) var(--ease-spring); will-change: transform; }
+.modes[data-on="easy"] .modes-thumb { transform: translateX(100%); }
+.modes button { position: relative; z-index: 1; min-width: 56px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; color: var(--ink-2); font-size: 13.5px; font-weight: 700; transition: color var(--dur-s) var(--ease-out); }
+.modes button[aria-pressed="true"] { color: var(--paper); }
+@media (hover: hover) { .modes button[aria-pressed="false"]:hover { color: var(--ink); } }
+.modes button:active { transform: scale(.96); }
+.modes.nope .modes-thumb { animation: nope 420ms var(--ease-out); }
 .hero.intro .matchup, .hero.intro .hero-foot { animation: rise var(--dur-l) var(--ease-out) both; }
 .hero.intro .hero-foot { animation-delay: 60ms; }
 .hero.intro .gap-link .knot { animation: popIn var(--dur-l) var(--ease-spring) 120ms both; }
@@ -169,6 +185,19 @@ b, strong { font-weight: 700; }
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .club { box-shadow: inset 0 -2px 0 var(--c2, transparent), 0 0 0 1px rgba(255, 255, 255, .14); } }
 :root[data-theme="dark"] .club { box-shadow: inset 0 -2px 0 var(--c2, transparent), 0 0 0 1px rgba(255, 255, 255, .14); }
+
+/* easy mode's career line: each stint is a ClubChip joined to its years, chronological, strung on a hairline */
+.career { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; min-width: 0; clip-path: inset(-2px -1px); }
+.stint { position: relative; display: inline-flex; align-items: stretch; flex: none; height: 18px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--rule-2); background: var(--card); }
+.stint .club { border-radius: 3px 0 0 3px; }
+.stint .yrs { display: grid; place-items: center; padding: 0 5px 0 4px; color: var(--ink-2); font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.stint + .stint::before { content: ""; position: absolute; left: -8px; top: 50%; width: 6px; height: 1px; background: var(--rule-2); }
+.pcard-end .stint + .stint::before { content: none; }
+.pcard-end .stint:not(:last-child)::after { content: ""; position: absolute; right: -8px; top: 50%; width: 6px; height: 1px; background: var(--rule-2); }
+.stint-more { color: var(--ink-3); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+/* switching modes: the career lines slide in (easy) or fold away (hard) */
+.careers-in .career .stint, .careers-in .career .stint-more { animation: stintIn var(--dur-m) var(--ease-out) both; animation-delay: calc(min(var(--i, 0), 8) * 30ms); }
+.careers-out .career { animation: careerOut var(--dur-m) var(--ease-in) both; }
 
 /* ------------------------------------------------------------------ buttons */
 .btn {
@@ -203,7 +232,7 @@ b, strong { font-weight: 700; }
 
 .chain { list-style: none; margin: 0; padding: 0; }
 .step { position: relative; }
-.node { position: relative; z-index: 1; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 52px; padding: 6px 0; transform-origin: 18px 50%; }
+.node { position: relative; z-index: 1; display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 12px; min-height: 52px; padding: 6px 0; transform-origin: 18px 50%; }
 .node-dot {
   width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: none;
   background: var(--paper); border: 1.5px solid var(--ink); color: var(--ink);
@@ -212,12 +241,20 @@ b, strong { font-weight: 700; }
 .node-who { min-width: 0; }
 .node-who strong { display: block; font-size: 16px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
 .node-who small { display: block; margin-top: 1px; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.node .chips { justify-content: flex-end; max-width: 112px; }
-@media (max-width: 420px) { .node .chips .club:nth-child(n+3) { display: none; } }
+.node-who .career { margin-top: 5px; }
 .node-tag { margin-right: 6px; color: var(--ink-3); font-weight: 600; }
 .node-start .node-dot { background: var(--ink); color: var(--paper); }
 .node-target .node-dot { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .chain-card.is-birdie .node-target .node-dot { background: var(--brass); border-color: var(--brass); color: #1a1917; }
+/* an eagle gilds the whole chain: every rail turns brass and every marker gets a brass ring (drawn link by link at the lock-up) */
+.chain-card.is-eagle .node-target .node-dot { background: var(--brass-deep); border-color: var(--brass-deep); }
+.chain-card.is-eagle .node-dot { position: relative; }
+.chain-card.is-eagle .node-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--brass); pointer-events: none; }
+.chain-card.is-eagle .rail-line::after { content: ""; position: absolute; inset: 0; background: var(--brass-deep); transform-origin: 50% 0; }
+.chain-card.is-eagle .rail-knot { border-color: var(--brass-deep); color: var(--brass-ink); }
+.chain-card.eagle-lock .rail-line::after { animation: drawDown var(--dur-l) var(--ease-out) both; animation-delay: calc(var(--k, 0) * var(--lock-step) * 1.6); }
+.chain-card.eagle-lock .node-dot::after { animation: ringIn var(--dur-l) var(--ease-spring) both; animation-delay: calc(var(--k, 0) * var(--lock-step) * 1.6 + 120ms); }
+.chain-card.eagle-lock .shimmer::before { animation-duration: 1100ms; }
 .node-ghost .node-dot { border-style: dashed; border-color: var(--rule-2); color: var(--ink-3); }
 .node-ghost .node-who strong { color: var(--ink-2); }
 .node-lost .node-dot { border-color: var(--bad); color: var(--bad); }
@@ -291,7 +328,7 @@ b, strong { font-weight: 700; }
 .ac-hl.on { opacity: 1; }
 .ac-hl.glide { transition: transform var(--dur-s) var(--ease-out), height var(--dur-s) var(--ease-out), opacity var(--dur-xs) linear; }
 .ac-row {
-  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  position: relative; display: block;
   min-height: 54px; padding: 8px 10px; border-radius: 4px; cursor: pointer;
   animation: rowIn var(--dur-m) var(--ease-out) both; animation-delay: calc(var(--i, 0) * var(--stagger));
 }
@@ -299,7 +336,7 @@ b, strong { font-weight: 700; }
 .ac-row strong { display: block; font-size: 15.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ac-row strong mark { background: none; color: inherit; font-weight: 700; }
 .ac-row small { display: block; color: var(--ink-2); font-size: 12.5px; }
-.ac-row .chips { justify-content: flex-end; }
+.ac-row .career { flex-wrap: nowrap; margin-top: 5px; overflow: hidden; }
 .ac-tag { margin-left: 6px; color: var(--accent-ink); font-size: 12px; font-weight: 700; }
 .ac-empty { padding: 14px 12px; color: var(--ink-2); font-size: 13.5px; }
 
@@ -323,6 +360,8 @@ b, strong { font-weight: 700; }
 .result-strip .rs-score { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1; }
 .result-strip .rs-score.is-birdie { position: relative; display: inline-block; color: var(--brass-ink); }
 .result-strip .rs-score.is-birdie::after { content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 3px; border-radius: 2px; background: var(--brass); transform-origin: 0 50%; animation: growX var(--dur-xl) var(--ease-out) 260ms both; }
+.result-strip .rs-score.is-eagle { position: relative; display: inline-block; color: var(--brass-ink); }
+.result-strip .rs-score.is-eagle::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 5px; border-top: 2px solid var(--brass-deep); border-bottom: 2px solid var(--brass-deep); transform-origin: 0 50%; animation: growX var(--dur-xl) var(--ease-out) 260ms both; }
 .result-strip .rs-score.is-par { color: var(--ink); }
 .result-strip .rs-score.is-x { color: var(--bad); }
 .result-strip small { display: block; color: var(--ink-2); font-size: 13px; margin-top: 4px; }
@@ -387,6 +426,13 @@ dialog { color: var(--ink); }
 .dlg-body p { margin: 0 0 12px; }
 .dlg-body strong { color: var(--ink); font-weight: 600; }
 .dlg-body .lede { color: var(--ink); font-size: 16px; }
+/* How to play: today's puzzle first, worded for the mode it's played in */
+.today-block { margin: 0 0 14px; padding: 2px 0 14px; border-bottom: 2px solid var(--ink); animation: rise var(--dur-m) var(--ease-out) 40ms both; }
+.today-block h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 0 6px; color: var(--ink-3); font-size: 13px; font-weight: 600; }
+.today-block h3 span { color: var(--accent-ink); font-weight: 700; }
+.today-block .ladder { margin: 0 0 6px; font-family: var(--font-display); font-size: 22px; font-weight: 600; line-height: 1.15; color: var(--ink); }
+.today-block .ladder b { font-weight: 700; }
+.today-block p:last-child { margin: 0; }
 .rules { margin: 0 0 16px; padding: 0; list-style: none; }
 .rules li { padding: 10px 0; border-top: 1px solid var(--rule); animation: rise var(--dur-m) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms + 80ms); }
 .rules li:last-child { border-bottom: 1px solid var(--rule); }
@@ -412,6 +458,12 @@ dialog { color: var(--ink); }
 /* a birdie gets a brass rule that draws in under the word, after the chain's brass sweep */
 .score-big.is-birdie::after { content: ""; display: block; width: 72px; height: 4px; margin: 8px auto 4px; border-radius: 2px; background: var(--brass); transform-origin: 50% 50%; animation: growX var(--dur-xl) var(--ease-out) 380ms both; }
 .score-big.is-par { color: var(--ink); }
+/* the eagle: the strongest lock-up. Two brass links snap together, the word lands bigger, a double brass rule draws in under it */
+.eagle-mark { display: block; margin: 8px auto 0; }
+.eagle-mark rect { animation: linkSnapL var(--dur-xl) var(--ease-spring) 80ms both; transform-box: fill-box; transform-origin: 50% 50%; }
+.eagle-mark rect + rect { animation-name: linkSnapR; }
+.score-big.is-eagle { font-size: 88px; margin-top: 2px; color: var(--brass-ink); animation-delay: 220ms; }
+.score-big.is-eagle::after { content: ""; display: block; width: 112px; height: 7px; margin: 8px auto 4px; border-top: 2.5px solid var(--brass-deep); border-bottom: 2.5px solid var(--brass-deep); transform-origin: 50% 50%; animation: growX var(--dur-xl) var(--ease-out) 480ms both; }
 .score-big.is-x { color: var(--bad); }
 .sheet-hero h2 { font-family: var(--font-display); font-size: 21px; font-weight: 600; animation: rise var(--dur-l) var(--ease-out) 160ms both; }
 .sheet-hero p { margin: 4px 0 0; color: var(--ink-2); font-size: 13.5px; animation: rise var(--dur-l) var(--ease-out) 200ms both; }
@@ -452,9 +504,17 @@ dialog { color: var(--ink); }
 .hist .h-num { position: absolute; top: 0; bottom: 0; left: 0; min-width: 26px; width: calc(var(--w, 0) * 1%); display: grid; place-items: center end; padding: 0 8px; color: var(--ink-2); font-size: 13px; font-weight: 700; animation: fadeIn var(--dur-m) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 50ms + 360ms); }
 .hist li.on .h-bar { background: var(--ink); box-shadow: none; }
 .hist li.on .h-num { color: var(--paper); }
-.hist li.is-birdie.on .h-bar { background: var(--brass); }
+.hist li.is-birdie .h-bar { background: var(--brass-soft); box-shadow: inset 0 0 0 1px var(--brass); }
+.hist li.is-birdie .h-num { color: var(--brass-ink); }
+.hist li.is-birdie.on .h-bar { background: var(--brass); box-shadow: none; }
 .hist li.is-birdie.on .h-num { color: #1a1917; }
 .hist li.is-birdie .h-lab { color: var(--brass-ink); }
+.hist li.is-eagle .h-bar { background: var(--brass-deep); box-shadow: none; }
+.hist li.is-eagle .h-num { color: #1a1917; }
+.hist li.is-eagle.on .h-bar { box-shadow: inset 0 0 0 2px var(--ink); }
+.hist li.is-eagle .h-lab { color: var(--brass-ink); font-size: 17px; }
+.eagle-note { margin: -4px 0 12px; color: var(--ink-2); font-size: 13.5px; }
+.eagle-note b { color: var(--brass-ink); }
 .hist li.is-par .h-lab { color: var(--ink); }
 .page-card { padding: 4px 0 18px; }
 .page-card + .page-card { padding-top: 16px; border-top: 1px solid var(--rule); }
@@ -487,7 +547,8 @@ dialog { color: var(--ink); }
 .arch-who small { display: block; margin-top: 2px; color: var(--ink-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arch-who .today-tag { color: var(--accent-ink); font-weight: 700; font-size: 13px; }
 .badge { display: inline-block; min-width: 46px; padding: 5px 8px 4px; border-radius: 4px; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 17px; line-height: 1; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); white-space: nowrap; }
-.badge.birdie { background: var(--brass); color: #1a1917; box-shadow: none; }
+.badge.birdie { background: var(--brass-soft); color: var(--brass-ink); box-shadow: inset 0 0 0 1.5px var(--brass); }
+.badge.eagle { background: var(--brass-deep); color: #1a1917; box-shadow: none; }
 .badge.par { background: var(--ink); color: var(--paper); box-shadow: none; }
 .badge.x { color: var(--bad); box-shadow: inset 0 0 0 1.5px var(--bad); }
 .badge.play { font-family: var(--font-body); font-size: 14px; font-weight: 700; color: var(--accent-ink); box-shadow: none; padding-right: 0; }
@@ -564,6 +625,13 @@ html.modal-open .downs .down { animation-play-state: paused !important; }
 @keyframes toastOut { to { opacity: 0; transform: translateY(-6px); } }
 @keyframes confirmIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes viewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes numSwap { 0% { opacity: 0; transform: translateY(-8px) scale(.8); } 100% { opacity: 1; transform: none; } }
+@keyframes nope { 0%, 100% { transform: none; } 30% { transform: translateX(14px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
+@keyframes stintIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+@keyframes careerOut { to { opacity: 0; transform: translateY(-4px); } }
+@keyframes ringIn { from { opacity: 0; transform: scale(.55); } to { opacity: 1; transform: none; } }
+@keyframes linkSnapL { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+@keyframes linkSnapR { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
 @keyframes vtOut { to { opacity: 0; } }
 @keyframes vtIn { from { opacity: 0; transform: translateY(6px); } }
 
