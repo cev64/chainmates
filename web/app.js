@@ -190,6 +190,42 @@
   const chipsFor = (p, k) => recentTeams(p, k).map((s) => chip(s.team, s.season)).join('');
   const posAbbr = (p) => esc((p.pos || '').slice(0, 3) || '•');
 
+  /* ------------------------------------------------------------ scoring display (the numbers all come from H.score) */
+  /** Fewest links possible for a puzzle, as the core reads it (older data has no `best`: par was the fewest then). */
+  const bestOf = (p) => H.newGame(p).best;
+  const UNDER_WORDS = ['', 'one', 'two', 'three'];
+  /** Display tier of a finished game: birdie (under par, brass), par (solid ink), over, x. */
+  const tierOf = (sc) => (!sc.won ? 'x' : sc.over < 0 ? 'birdie' : sc.over === 0 ? 'par' : 'over');
+  const underText = (over) => (UNDER_WORDS[-over] || String(-over)) + ' under par';
+  const shareOpts = () => ({ url: CONFIG.shareUrl, title: S.title, emoji: S.emoji, miss: S.miss, lost: S.lost });
+
+  /* ------------------------------------------------------------ hints (copy from the sport registry, picked deterministically) */
+  /** FNV-1a over "puzzle.position": the same puzzle and chain spot always pick the same line, on any device. */
+  function hashPick(n, len, size) {
+    let h = 2166136261;
+    const key = n + '.' + len;
+    for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0) % size;
+  }
+  /** The hint sentence split around its team: { before, after } (old saved hints without `pos` use the `any` line). */
+  function hintCopy(h, n, len) {
+    const map = S.positions || {}, lines = S.hints || {};
+    const group = (h.pos && map[String(h.pos).toUpperCase()]) || 'any';
+    const pool = (lines[group] && lines[group].length ? lines[group] : lines.any) || ['Try someone from the {team}.'];
+    const t = pool[hashPick(n, len, pool.length)];
+    const at = t.indexOf('{team}');
+    return at < 0 ? { before: t + ' ', after: '' } : { before: t.slice(0, at), after: t.slice(at + 6) };
+  }
+  const hintPlain = (h, n, len) => { const c = hintCopy(h, n, len); return c.before + H.teamLabel(index, h.team, h.season) + c.after; };
+  /** Words become spans so the reveal can slide them in one after another (transform/opacity only). */
+  function hintHTML(h, n, len) {
+    const c = hintCopy(h, n, len);
+    let i = 0;
+    const words = (txt) => txt.split(/(\s+)/).map((w) => (/^\s*$/.test(w) ? w : '<span class="hw" style="--w:' + (i++) + '">' + esc(w) + '</span>')).join('');
+    const team = '<span class="hw hw-team" style="--w:' + (i++) + '">' + chip(h.team, h.season) + '<b>' + esc(H.teamLabel(index, h.team, h.season)) + '</b></span>';
+    return words(c.before) + team + words(c.after);
+  }
+
   /* ------------------------------------------------------------ views (View Transitions, crossfade fallback) */
   const views = { status: $('#viewStatus'), game: $('#viewGame'), archive: $('#viewArchive'), stats: $('#viewStats') };
   function showView(name) {
@@ -278,7 +314,7 @@
 
   /* ------------------------------------------------------------ game state */
   function validState(st, p) {
-    return !!st && typeof st === 'object' && Number.isInteger(st.downs) && st.downs >= 0 && Number.isInteger(st.inc) && Number.isInteger(st.hints) && st.n === p.n && st.start === p.start && st.end === p.end && st.par === p.par &&
+    return !!st && typeof st === 'object' && Number.isInteger(st.downs) && st.downs >= 0 && Number.isInteger(st.inc) && Number.isInteger(st.hints) && st.n === p.n && st.start === p.start && st.end === p.end && st.par === p.par && (st.best == null || st.best === bestOf(p)) &&
       Array.isArray(st.chain) && st.chain[0] === p.start && st.chain.every((id) => !!H.player(index, id)) &&
       ['playing', 'won', 'lost'].indexOf(st.status) >= 0 && Array.isArray(st.log) && !!st.hintAt && typeof st.hintAt === 'object';
   }
@@ -315,9 +351,15 @@
       '<span class="chips">' + chipsFor(p, 4) + '</span>' +
       '<span class="pcard-meta">' + esc(metaLine(p)) + '</span></div>';
   }
+  /** "Par 3" over "birdie in 2": the badge itself says par can be beaten (old data, where par was the fewest, shows par alone). */
+  function parBadge(pz) {
+    const best = bestOf(pz), under = best < pz.par;
+    return '<span class="par-badge' + (under ? ' has-best' : '') + '" role="img" aria-label="Par ' + pz.par + ' links' + (under ? '. Can be done in ' + best + ', a birdie' : '') + '">' +
+      '<span class="pb-par">Par ' + pz.par + '</span>' + (under ? '<span class="pb-best">birdie in ' + best + '</span>' : '') + '</span>';
+  }
   function renderHero() {
     const pz = game.puzzle, practice = game.mode === 'practice';
-    const a = H.player(index, pz.start), b = H.player(index, pz.end);
+    const a = H.player(index, pz.start), b = H.player(index, pz.end), best = bestOf(pz);
     const hero = $('#hero');
     $('#heroInner').innerHTML =
       '<div class="hero-kicker">' +
@@ -329,10 +371,11 @@
         '<div class="gap-link" aria-hidden="true"><span class="knot">' + LINK_SVG + '</span></div>' +
         heroCard(b, 'Finish', 'pcard-end') +
       '</div>' +
-      '<div class="hero-foot">' +
-        '<span class="par-badge" aria-label="Par ' + pz.par + ' links">Par ' + pz.par + '</span>' +
+      '<div class="hero-foot">' + parBadge(pz) +
         '<h1 class="hero-title" id="heroTitle">' + esc(S.tagline || 'Connect two players through teammates.') + ' ' +
-          (practice ? 'This replay doesn\'t count toward your stats.' : 'Fewest links possible: <b>' + pz.par + '</b>.') + '</h1>' +
+          (practice ? 'This replay doesn\'t count toward your stats.'
+            : best < pz.par ? 'The shortest chain takes <b>' + plural(best, 'link') + '</b>. Par gives you one to spare.'
+            : 'Fewest links possible: <b>' + pz.par + '</b>.') + '</h1>' +
       '</div>';
     hero.classList.remove('intro'); reflow(hero); hero.classList.add('intro');
     setKicker('<span class="k-word">' + (practice ? 'Practice, ' : '') + '</span><b>No. ' + pz.n + '</b>');
@@ -384,13 +427,23 @@
       $('#nextConn').innerHTML = railHTML(body.length) + '<span class="reason"><span>Next: a teammate of <b>' + esc(last.name) + '</b></span></span>';
     } else closeAC();
 
-    // hint for the current position (kept visible while you stay there)
+    // hint for the current position (kept visible while you stay there; the words slide in only when it is first revealed)
     const h = playing ? st.hintAt[lastId()] : null;
     const pill = $('#hintPill');
     pill.hidden = !h;
-    if (h) pill.innerHTML = BULB_SVG + '<span>Hint: try the</span>' + chip(h.team, h.season) + '<b>' + esc(H.teamLabel(index, h.team, h.season)) + '</b>';
+    if (h) {
+      const key = st.n + ':' + lastId();
+      if (pill.dataset.key !== key || opts.hintReveal) {
+        pill.dataset.key = key;
+        pill.classList.toggle('reveal', !!opts.hintReveal);
+        pill.innerHTML = '<span class="hint-ic" aria-hidden="true">' + BULB_SVG + '</span>' +
+          '<p class="hint-line"><span class="hint-k">Hint.</span> ' + hintHTML(h, st.n, ids.length) + '</p>';
+        if (opts.hintReveal) { pill.style.animation = 'none'; reflow(pill); pill.style.animation = ''; }
+      }
+    } else pill.dataset.key = '';
 
-    // target
+    // target (the finish marker turns brass only for a birdie)
+    $('#chainCard').classList.toggle('is-birdie', won && sc.over < 0);
     const end = H.player(index, st.end), tgt = $('#target');
     tgt.className = 'target' + (opts.animate && won ? ' enter' : '');
     tgt.innerHTML = won
@@ -401,8 +454,11 @@
     const strip = $('#resultStrip');
     strip.hidden = playing;
     if (!playing) {
-      strip.innerHTML = '<div><div class="rs-score ' + (won && sc.over === 0 ? 'is-par' : lost ? 'is-x' : '') + '">' + esc(won ? sc.label : S.lost) + '</div>' +
-        '<small>' + (won ? 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par : plural(st.inc, S.miss) + ' · Par ' + st.par) + '</small></div>' +
+      const tier = tierOf(sc);
+      const line = !won ? plural(st.inc, S.miss) + ' · Par ' + st.par
+        : 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par + (sc.over < 0 ? ' · ' + underText(sc.over) : sc.links > sc.best ? ' · shortest is ' + sc.best : '');
+      strip.innerHTML = '<div><div class="rs-score is-' + tier + '">' + esc(won ? sc.label : S.lost) + '</div>' +
+        '<small>' + esc(line) + '</small></div>' +
         '<span class="rs-actions">' +
         (game.mode === 'daily' && game.puzzle.n !== todayN ? '<a class="btn" href="#p' + game.puzzle.n + '">Replay as practice</a>' : '') +
         '<button type="button" class="btn btn-ink" id="btnSeeResults">See results</button></span>';
@@ -500,7 +556,7 @@
     }
   }
 
-  /** Solve: wait for the final link to land, pulse the chain from start to end (gold sweep at par), then raise the sheet. */
+  /** Solve: wait for the final link to land, pulse the chain from start to end (a brass sweep for a birdie), then raise the sheet. */
   function finish(won) {
     recordDaily();
     $('#guess').blur();
@@ -509,17 +565,17 @@
     haptic('solve');
     busy = true;
     const nodes = game.state.chain.length, step = tok('--lock-step');
-    const atPar = H.score(game.state).over === 0;
+    const birdie = H.score(game.state).over < 0;
     const landing = tok('--dur-l') + 140;
     setTimeout(() => {
-      card.classList.remove('lock', 'par-shine'); reflow(card);
+      card.classList.remove('lock', 'birdie-shine'); reflow(card);
       card.style.setProperty('--shine-delay', Math.round(step * (nodes - 1) * 0.6) + 'ms');
       card.classList.add('lock');
-      if (atPar) card.classList.add('par-shine');
+      if (birdie) card.classList.add('birdie-shine');
     }, landing);
-    const total = landing + step * nodes + tok('--dur-l') + (atPar ? 380 : 120);
+    const total = landing + step * nodes + tok('--dur-l') + (birdie ? 380 : 120);
     setTimeout(() => { busy = false; openResults(); }, total);
-    setTimeout(() => card.classList.remove('lock', 'par-shine'), total + 1400);
+    setTimeout(() => card.classList.remove('lock', 'birdie-shine'), total + 1400);
   }
 
   /** Incompletion: the input shakes, a red link snaps off the chain and a down drains. */
@@ -565,7 +621,7 @@
     const st = game.state;
     if (st.hintAt[lastId()]) { $('#hintPill').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
     if (st.downs <= 1) { toast('No hints on your last ' + LIFE, 'warn'); return; }
-    $('#hintDesc').innerHTML = 'A hint names the team and season of the next link on a shortest route from <b>' + esc(H.player(index, lastId()).name) +
+    $('#hintDesc').innerHTML = 'A hint reveals <b>a team and a position</b>: who to look for next on a shortest route from <b>' + esc(H.player(index, lastId()).name) +
       '</b>. It costs one ' + esc(LIFE) + ': you\'ll have ' + plural(st.downs - 1, LIFE, LIVES) + ' left.';
     returnFocus.set(dlgHint, $('#btnHint'));
     dlgHint.showModal();
@@ -579,9 +635,9 @@
     }
     game.state = r.state;
     save();
-    renderGame();
-    const label = H.teamLabel(index, r.hint.team, r.hint.season);
-    toast('Hint: try the ' + label, 'good', downsLeft(game.state.downs));
+    renderGame({ hintReveal: true });
+    toast('Hint revealed', 'good', downsLeft(game.state.downs));
+    announce('Hint. ' + hintPlain(r.hint, game.state.n, game.state.chain.length));
   });
 
   /* ------------------------------------------------------------ autocomplete */
@@ -863,12 +919,12 @@
     el.setAttribute('datetime', 'PT' + Math.floor(left / 1000) + 'S');
   }
 
-  function miniChain(ids, links, endId) {
+  function miniChain(ids, links, endId, brass) {
     let html = '';
     ids.forEach((id, i) => {
       const p = H.player(index, id);
       if (i > 0) { const l = links[i - 1]; html += '<li class="ml-link">' + chip(l.team, l.season) + 'Teammates on the ' + esc(H.teamLabel(index, l.team, l.season)) + '</li>'; }
-      const cls = i === 0 ? 's' : id === endId ? 'e' : '';
+      const cls = i === 0 ? 's' : id === endId ? 'e' + (brass ? ' brass' : '') : '';
       html += '<li><span class="ml-dot ' + cls + '" aria-hidden="true">' + posAbbr(p) + '</span><span class="ml-name">' + esc(p.name) + '</span><span class="chips">' + chipsFor(p, 2) + '</span></li>';
     });
     return html;
@@ -877,8 +933,11 @@
   function statTiles(stats) {
     const ds = H.displayStreaks(stats, todayN);
     const pct = stats.played ? Math.round((stats.won / stats.played) * 100) : 0;
-    const t = [[stats.played, 'Played'], [pct, 'Win %'], [ds.cur, 'Streak'], [ds.max, 'Best streak'], [ds.parCur, 'Par streak', 'gold'], [ds.parMax, 'Best par streak', 'gold']];
-    return '<div class="tiles">' + t.map((x, i) => '<div class="tile ' + (x[2] || '') + '" style="--i:' + i + '"><b data-count="' + x[0] + '">' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>';
+    // The par streak counts par or better: in golf terms, bogey-free.
+    const t = [[stats.played, 'Played'], [pct, 'Win %'], [ds.cur, 'Streak'], [ds.max, 'Best streak'],
+      [ds.parCur, 'Bogey-free streak', 'Days in a row at par or better'], [ds.parMax, 'Best bogey-free', 'Longest run at par or better']];
+    return '<div class="tiles">' + t.map((x, i) => '<div class="tile" style="--i:' + i + '"' + (x[2] ? ' title="' + esc(x[2]) + '"' : '') + '><b data-count="' + x[0] + '">' + x[0] + '</b><small>' + x[1] +
+      (x[2] ? '<span class="sr-only"> (' + esc(x[2].toLowerCase()) + ')</span>' : '') + '</small></div>').join('') + '</div>';
   }
   /** Numbers tick up from 0 (text only; no layout work beyond the glyphs). */
   function animateCounts(root, delay) {
@@ -905,13 +964,17 @@
     refreshToday();
     const stale = game.mode === 'daily' && game.puzzle.n < todayN;   // finished after midnight: the next puzzle is already out
     const pz = game.puzzle, st = game.state, sc = H.score(st), won = st.status === 'won', practice = game.mode === 'practice';
-    const share = H.shareText(pz, st, { url: CONFIG.shareUrl, title: S.title, emoji: S.emoji });
+    const share = H.shareText(pz, st, shareOpts());
     const myLinks = [];
     for (let i = 1; i < st.chain.length; i++) myLinks.push(H.sharedTeams(index, st.chain[i - 1], st.chain[i])[0]);
     const optLinks = (pz.links || []).map((l) => ({ team: l[0], season: l[1] }));
-    const atPar = won && sc.over === 0;
+    const tier = tierOf(sc), best = sc.best, optimal = pz.chain.length - 1;
     // Zero counts are left out: "3 links · Par 3" reads better than "· 0 incompletions · 0 hints".
-    const sub = [plural(sc.links, 'link') + ' · Par ' + pz.par, st.inc ? plural(st.inc, S.miss) : '', st.hints ? plural(st.hints, 'hint') : ''].filter(Boolean).join(' · ');
+    const sub = [plural(sc.links, 'link') + ' · Par ' + pz.par, won && sc.links > best ? 'shortest ' + best : '', st.inc ? plural(st.inc, S.miss) : '', st.hints ? plural(st.hints, 'hint') : ''].filter(Boolean).join(' · ');
+    const headline = !won ? esc(S.lost)
+      : sc.over < 0 ? sc.label + '! The shortest chain there is.'
+      : sc.over === 0 ? (best < pz.par ? 'Solved at par. The birdie was ' + plural(best, 'link') + '.' : 'Right on par, the shortest chain there is.')
+      : 'Solved, ' + sc.over + ' over par';
     let sec = 0;
     const secOpen = (id) => '<section class="sheet-sec" style="--i:' + (sec++) + '" aria-labelledby="' + id + '">';
 
@@ -919,8 +982,8 @@
       '<header class="sheet-hero" data-drag>' +
         '<button type="button" class="close-btn" data-close aria-label="Close results">' + CLOSE_SVG + '</button>' +
         '<span class="kicker">' + esc(S.title) + ' <b>No. ' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + (practice ? ' · Practice' : '') + '</span>' +
-        '<div class="score-big ' + (atPar ? 'is-par' : won ? '' : 'is-x') + '" aria-hidden="true">' + esc(sc.label) + '</div>' +
-        '<h2 id="sheetTitle" tabindex="-1">' + (won ? (atPar ? 'Right on par!' : 'Solved, ' + sc.label + ' over par') : esc(S.lost)) + '</h2>' +
+        '<div class="score-big is-' + tier + '" aria-hidden="true">' + esc(sc.label) + '</div>' +
+        '<h2 id="sheetTitle" tabindex="-1">' + headline + '</h2>' +
         '<p>' + esc(won ? sub : [plural(st.inc, S.miss), st.hints ? plural(st.hints, 'hint') : '', 'Par ' + pz.par].filter(Boolean).join(' · ')) + '</p>' +
       '</header>' +
       '<div class="sheet-body">' +
@@ -934,12 +997,13 @@
         (practice ? '<p class="practice-note sheet-sec" style="--i:' + (sec++) + '">Practice replay of puzzle #' + pz.n + '. It doesn\'t count toward your stats or streaks.</p>'
           : secOpen('stTitle') + '<h3 id="stTitle">Your stats</h3>' + statTiles(loadStats()) + '</section>') +
         secOpen('myTitle') + '<h3 id="myTitle">Your chain <span>' + (sc.links ? plural(sc.links, 'link') : 'No links') + '</span></h3>' +
-          '<ol class="mini-list">' + miniChain(st.chain, myLinks, st.end) +
+          '<ol class="mini-list">' + miniChain(st.chain, myLinks, st.end, tier === 'birdie') +
           (won ? '' : '<li class="ml-link miss">' + esc(S.lost) + '</li><li><span class="ml-dot e" aria-hidden="true">' + posAbbr(H.player(index, st.end)) + '</span><span class="ml-name">' + esc(H.player(index, st.end).name) + '</span></li>') +
           '</ol></section>' +
-        secOpen('opTitle') + '<h3 id="opTitle">One optimal chain <span>' + plural(pz.par, 'link') + '</span></h3>' +
-          '<ol class="mini-list">' + miniChain(pz.chain, optLinks, pz.end) + '</ol>' +
-          '<p class="optimal-note">' + (pz.optimal === 1 ? 'Only 1 optimal chain exists.' : esc(Number(pz.optimal).toLocaleString('en-US')) + ' optimal chains exist.') + '</p>' +
+        secOpen('opTitle') + '<h3 id="opTitle">One optimal chain <span>' + plural(optimal, 'link') + '</span></h3>' +
+          '<ol class="mini-list">' + miniChain(pz.chain, optLinks, pz.end, optimal < pz.par) + '</ol>' +
+          '<p class="optimal-note">' + (pz.optimal === 1 ? 'Only 1 optimal chain exists' : esc(Number(pz.optimal).toLocaleString('en-US')) + ' optimal chains exist') +
+            (optimal < pz.par ? (pz.optimal === 1 ? '. It\'s the only birdie.' : ', and each one is a birdie.') : '.') + '</p>' +
         '</section>' +
         '<div class="countdown sheet-sec" style="--i:' + (sec++) + '">' + (stale ? newPuzzleHTML() : '<span>Next puzzle in</span><time id="countdown">--:--:--</time>') + '</div>' +
       '</div>';
@@ -988,17 +1052,17 @@
   /* ------------------------------------------------------------ stats page */
   function renderStatsPage() {
     const stats = loadStats(), total = stats.played;
-    const buckets = [['0', 'Par'], ['1', '+1'], ['2', '+2'], ['3', '+3'], ['X', 'X']];
+    const buckets = [['-1', 'Birdie'], ['0', 'Par'], ['1', '+1'], ['2', '+2'], ['3', '+3'], ['X', 'X']];
     const max = Math.max(1, ...buckets.map((b) => stats.hist[b[0]] || 0));
     const todayState = store.get(stateKey('daily', todayN), null);
     let mark = null;
-    if (todayState && todayState.status !== 'playing' && stats.results[todayN]) { const sc = H.score(todayState); mark = sc.won ? String(Math.min(3, sc.over)) : 'X'; }
+    if (todayState && todayState.status !== 'playing' && stats.results[todayN]) { const sc = H.score(todayState); mark = sc.won ? String(Math.max(-1, Math.min(3, sc.over))) : 'X'; }
     $('#statsBody').innerHTML =
       '<section class="card page-card" aria-labelledby="sumTitle"><h2 id="sumTitle">Summary</h2>' + statTiles(stats) + '</section>' +
       '<section class="card page-card" aria-labelledby="histTitle"><h2 id="histTitle">Strokes vs par <small>' + plural(total, 'daily game') + '</small></h2>' +
         (total ? '<ol class="hist">' + buckets.map((b, i) => {
           const c = stats.hist[b[0]] || 0, on = mark ? mark === b[0] : c > 0 && c === max;
-          return '<li class="' + (b[0] === '0' ? 'is-par ' : '') + (on ? 'on' : '') + '"><span class="h-lab">' + b[1] + (b[0] === '3' ? '<span class="sr-only"> or more</span>' : '') + '</span>' +
+          return '<li class="' + (b[0] === '-1' ? 'is-birdie ' : b[0] === '0' ? 'is-par ' : '') + (on ? 'on' : '') + '"><span class="h-lab">' + b[1] + (b[0] === '3' ? '<span class="sr-only"> or more</span>' : b[0] === '-1' ? '<span class="sr-only"> or better</span>' : '') + '</span>' +
             '<span class="h-track"><span class="h-bar" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '"></span><span class="h-num" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '">' + c + '</span></span></li>';
         }).join('') + '</ol>' : '<p class="empty-note">Finish a daily puzzle to start your record.</p>') +
       '</section>' +
@@ -1013,7 +1077,7 @@
     if (!st) return null;
     if (st.status === 'playing') return st.chain.length > 1 || st.inc || st.hints ? { cls: 'prog', text: 'In progress' } : null;
     const sc = H.score(st);
-    return { cls: sc.won ? (sc.over === 0 ? 'par' : 'over') : 'x', text: sc.label };
+    return { cls: tierOf(sc), text: sc.label };
   }
   function renderArchive() {
     const last = Math.min(todayN, puzzlesJson.puzzles.length);
@@ -1045,9 +1109,9 @@
     return '<p class="lede">' + esc(S.tagline) + ' A new puzzle every day at midnight Eastern.</p>' +
       '<ul class="rules">' +
         '<li style="--i:0"><span class="runin">The chain.</span>You get a Start and a Finish player. Add players one at a time; each must have been a <strong>teammate</strong> of the one before (' + esc(S.rule || 'same team, same season') + '). Reach a teammate of the Finish player and you\'ve solved it.</li>' +
-        '<li style="--i:1"><span class="runin">Par.</span>The fewest links possible. Match it for a perfect score; every extra link is +1.</li>' +
+        '<li style="--i:1"><span class="runin">Par.</span>The fewest links possible, plus one to spare. Find the shortest chain for a <strong>birdie</strong>; every link over par is +1.</li>' +
         '<li style="--i:2"><span class="runin">' + esc(cap(LIVES)) + '.</span>You have ' + H.DOWNS + '. A guess that wasn\'t a teammate is an ' + esc(S.miss) + ' and costs one. Lose them all and it\'s a ' + esc(S.lost.toLowerCase()) + '.</li>' +
-        '<li style="--i:3"><span class="runin">Help.</span>Undo is free. A hint names the team and season of the next link, and costs a ' + esc(LIFE) + '.</li>' +
+        '<li style="--i:3"><span class="runin">Help.</span>Undo is free. A hint reveals a team and a position for your next link, and costs a ' + esc(LIFE) + '.</li>' +
       '</ul>' +
       '<p class="fine">Seasons ' + esc(seasonsRange()) + ', regular season and playoffs. Your progress and stats stay on this device.</p>' +
       '<button type="button" class="btn btn-ink btn-wide btn-lg" data-close>Start playing</button>';

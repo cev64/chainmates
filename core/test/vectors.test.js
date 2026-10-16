@@ -34,7 +34,7 @@ test('vectors: search', () => {
 });
 
 test('vectors: score', () => {
-  for (const v of V.score) assert.deepEqual(H.score({ chain: new Array(v.links + 1).fill('x'), par: v.par, status: v.status }), v.out);
+  for (const v of V.score) assert.deepEqual(H.score({ chain: new Array(v.links + 1).fill('x'), par: v.par, best: v.best, status: v.status }), v.out);
 });
 
 test('vectors: shareText', () => {
@@ -54,18 +54,21 @@ test('vectors: easternDate', () => {
 
 test('vectors: scripted games', () => {
   for (const g of V.game) {
-    let s = H.newGame(PUZZLES.puzzles[g.puzzle - 1]);
+    let p = PUZZLES.puzzles[g.puzzle - 1];
+    if (g.legacy) { p = { ...p, par: p.best }; delete p.best; } // old data: no best, par = best
+    let s = H.newGame(p);
     const got = [];
     for (const m of g.moves) {
       if (m[0] === 'g') { const r = H.guess(idx, s, m[1]); s = r.state; got.push(r.result.kind === 'rejected' ? 'rejected:' + r.result.reason : r.result.kind); }
       else if (m[0] === 'u') { s = H.undo(s); got.push('undo'); }
-      else { const r = H.hint(idx, s); s = r.state; got.push(r.error ? 'error:' + r.error : `hint:${r.hint.team}:${r.hint.season}`); }
+      else { const r = H.hint(idx, s); s = r.state; got.push(r.error ? 'error:' + r.error : `hint:${r.hint.team}:${r.hint.season}:${r.hint.pos}`); }
     }
     assert.deepEqual(got, g.results, g.name);
     const e = g.expect;
     assert.deepEqual({ chain: s.chain, downs: s.downs, inc: s.inc, hints: s.hints, status: s.status, log: s.log }, 
       { chain: e.chain, downs: e.downs, inc: e.inc, hints: e.hints, status: e.status, log: e.log }, g.name);
-    assert.deepEqual(H.score(s), e.score, g.name);
+    if (e.score) assert.deepEqual(H.score(s), e.score, g.name); // only checked for finished games
+    else assert.equal(s.status, 'playing', g.name + ': finished games need a score');
   }
 });
 
@@ -73,7 +76,7 @@ test('vectors: stats', () => {
   for (const sv of V.stats) {
     let st = H.newStats();
     for (const r of sv.records) {
-      const state = { chain: new Array(r.links + 1).fill('x'), par: r.par, status: r.won ? 'won' : 'lost', inc: r.inc, hints: r.hints };
+      const state = { chain: new Array(r.links + 1).fill('x'), par: r.par, best: r.best, status: r.won ? 'won' : 'lost', inc: r.inc, hints: r.hints };
       st = H.recordResult(st, r.n, state);
     }
     const f = sv.final;

@@ -83,12 +83,13 @@ def main():
         tag = f"#{p['n']}"
         check(p["n"] == i + 1, f"{tag}: numbering")
         check(p["date"] == (epoch + dt.timedelta(days=i)).isoformat(), f"{tag}: date")
-        check(p["par"] >= 2, f"{tag}: par {p['par']} < 2")
-        check(len(p["chain"]) == p["par"] + 1 and len(p["links"]) == p["par"], f"{tag}: chain length")
+        check(p["best"] >= 2, f"{tag}: fewest links {p['best']} < 2")
+        check(p["par"] == p["best"] + 1, f"{tag}: par should be fewest links + 1")
+        check(len(p["chain"]) == p["best"] + 1 and len(p["links"]) == p["best"], f"{tag}: chain length")
         check(p["chain"][0] == p["start"] and p["chain"][-1] == p["end"], f"{tag}: chain ends")
         for (t, s), a, b in zip(p["links"], p["chain"], p["chain"][1:]):
             check((t, s) in ix.of[a] and (t, s) in ix.of[b], f"{tag}: {ix.name[a]}-{ix.name[b]} not on {s} {t}")
-        check(ix.dist(p["start"], p["end"]) == p["par"], f"{tag}: par is not the shortest path")
+        check(ix.dist(p["start"], p["end"]) == p["best"], f"{tag}: best is not the shortest path")
         pair = frozenset((p["start"], p["end"]))
         check(pair not in pairs, f"{tag}: repeated pair")
         pairs.add(pair)

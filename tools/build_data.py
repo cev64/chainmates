@@ -174,7 +174,18 @@ OFFENSE_POS = {"QB", "RB", "WR", "TE"}
 DEFENSE_POS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "S", "FS", "SS", "DB"}
 
 
-def fame_scores(stats, stints, players):
+def load_honors(offline):
+    """gsis_id -> (pro_bowls, all_pros, hall_of_fame) from nflverse draft_picks (drafted players only)."""
+    p = fetch("draft_picks/draft_picks.parquet", offline, max_age_h=20)
+    if not p:
+        return {}
+    d = pd.read_parquet(p).dropna(subset=["gsis_id"])
+    return {g: (int(pb or 0), int(ap or 0), bool(h)) for g, pb, ap, h in zip(d.gsis_id, d.probowls, d.allpro, d.hof)}
+
+
+def fame_scores(stats, stints, players, honors):
+    """Returns (fame 0-999 for every player, production points). Honors weigh as much as stats:
+    fans remember Pro Bowlers, not compilers."""
     reg = stats[stats.season_type == "REG"]
     f = lambda c: reg[c].fillna(0) if c in reg else 0
     pts = (
@@ -190,6 +201,8 @@ def fame_scores(stats, stints, players):
     raw = {}
     for pid, g in games.items():
         r = 0.25 * g + prod.get(pid, 0.0)
+        pb, ap, hof = honors.get(pid, (0, 0, False))
+        r += 25 * pb + 25 * ap + 60 * hof
         if pid in m.index:
             row = m.loc[pid]
             if isinstance(row, pd.DataFrame):
@@ -198,7 +211,34 @@ def fame_scores(stats, stints, players):
                 r += 12 + (33 - min(32, int(row["draft_pick"]))) * 0.5
         raw[pid] = max(r, 0.0)
     top = max(raw.values())
-    return {pid: int(round(999 * math.sqrt(v / top))) for pid, v in raw.items()}
+    return {pid: int(round(999 * math.sqrt(v / top))) for pid, v in raw.items()}, prod.to_dict()
+
+
+def known_since_2002(pid, meta, prod):
+    return meta[pid]["games"] >= 48 and prod.get(pid, 0) >= (60 if meta[pid]["pos"] in OFFENSE_POS else 30)
+
+
+def is_star(pid, meta, honors, prod):
+    """Endpoint-worthy: someone a regular viewer knows on sight."""
+    if meta[pid]["pos"] not in OFFENSE_POS | DEFENSE_POS:
+        return False
+    # Known for what they did since 2002 (our data), and for playing offense or defense: return
+    # specialists' Pro Bowls and pre-2002 careers don't make a recognisable endpoint.
+    if not known_since_2002(pid, meta, prod):
+        return False
+    pb, ap, hof = honors.get(pid, (0, 0, False))
+    # One Pro Bowl is enough only for young players (it's often all a 2020s star has had time for).
+    if ap >= 1 or hof or pb >= 2 or (pb >= 1 and meta[pid]["first"] >= 2020):
+        return True
+    # Undrafted stars (Romo, Gates, Welker, Foster...) have no honors row; very productive careers count too.
+    return prod.get(pid, 0) >= (160 if pid not in honors else 300)
+
+
+def is_notable(pid, meta, honors, prod):
+    """Friday deep cuts: a one-time Pro Bowler or a long productive career."""
+    if meta[pid]["pos"] not in OFFENSE_POS | DEFENSE_POS or not known_since_2002(pid, meta, prod):
+        return False
+    return honors.get(pid, (0, 0, False))[0] >= 1 or prod.get(pid, 0) >= 150
 
 
 # --- Graph -----------------------------------------------------------------
@@ -266,36 +306,37 @@ class Graph:
 # Difficulty calendar. NFL rosters are big (53+), so the teammate graph is dense:
 # among the top ~400 players every pair is 1-3 links apart and par 4 almost never
 # exists. Difficulty therefore comes from par *and* how many optimal routes exist.
-# Endpoints come from the top `pool` of the endpoint pool, picked with a lean toward fame;
-# early-week puzzles use bigger names.
-# kind: (par, min optimal, max optimal, deep-cut chance for one endpoint, pool)
+# Par is one more than the fewest links possible, so an optimal chain is a birdie.
+PAR_OFFSET = 1
+# Endpoints come from the top `pool` of the star pool (Pro Bowlers, All-Pros, Hall of Famers and
+# undrafted stars, ranked by fame), picked with a lean toward fame; early-week puzzles use bigger names.
+# kind: (best = fewest links, min optimal routes, max optimal routes, deep-cut chance, pool)
 DIFFICULTY = {
-    "mon": (2, 20, 10**9, 0.0, 200),   # par 2, lots of shared teammates, stars only
-    "tue": (2, 8, 19, 0.0, 300),
-    "wed": (3, 1, 10**9, 0.0, 400),
-    "thu": (2, 3, 7, 0.0, 300),        # par 2, only a handful of routes
-    "fri": (3, 1, 300, 0.3, 400),      # par 3, few routes, sometimes a deep cut
-    "sat": (3, 1, 10**9, 0.0, 400),    # themed; falls back to par 2
-    "sun": (3, 1, 10**9, 0.0, 400),
+    "mon": (2, 20, 10**9, 0.0, 120),   # 2 links, lots of shared teammates, the biggest names
+    "tue": (2, 8, 19, 0.0, 200),
+    "wed": (3, 1, 10**9, 0.0, 300),
+    "thu": (2, 3, 7, 0.0, 200),        # 2 links, only a handful of routes
+    "fri": (3, 1, 300, 0.2, 300),      # 3 links, few routes, sometimes a deep cut
+    "sat": (3, 1, 10**9, 0.0, 10**9),  # themed; falls back to 2 links
+    "sun": (3, 1, 10**9, 0.0, 10**9),
 }
 KIND = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-POOL_SIZE = 400
-DEEP_POOL = 1200  # "deep cut" endpoints come from fame ranks POOL_SIZE..DEEP_POOL
+DEEP_POOL = 300  # Friday deep cuts: the most famous "notable" players who aren't stars
 
 
 def era(p):  # career midpoint
     return (p["first"] + p["last"]) / 2
 
 
-def build_pool(meta, fame):
-    """Endpoint pool: ~65% offensive skill players, ~35% defenders; plus a deep-cut pool."""
+def build_pool(meta, fame, honors, prod):
+    """Star pool (offense ~65%, defense ~35%, by fame) and the deep-cut pool."""
     ranked = sorted(meta, key=lambda p: -fame[p])
-    off = [p for p in ranked if meta[p]["pos"] in OFFENSE_POS]
-    dfn = [p for p in ranked if meta[p]["pos"] in DEFENSE_POS]
-    n_off = round(POOL_SIZE * 0.65)
-    pool = sorted(off[:n_off] + dfn[:POOL_SIZE - n_off], key=lambda p: -fame[p])
-    k = DEEP_POOL // POOL_SIZE
-    deep = off[n_off:n_off * k] + dfn[POOL_SIZE - n_off:(POOL_SIZE - n_off) * k]
+    stars = [p for p in ranked if is_star(p, meta, honors, prod)]
+    off = [p for p in stars if meta[p]["pos"] in OFFENSE_POS]
+    dfn = [p for p in stars if meta[p]["pos"] in DEFENSE_POS][:round(len(off) * 35 / 65)]
+    pool = sorted(off + dfn, key=lambda p: -fame[p])
+    star_set = set(pool)
+    deep = [p for p in ranked if p not in star_set and is_notable(p, meta, honors, prod)][:DEEP_POOL]
     return pool, deep
 
 
@@ -314,8 +355,9 @@ def snf_by_weekend(seasons, offline):
     return out
 
 
-def generate(G, meta, fame, epoch, days, existing, today, seasons, offline, overrides, seed=20021):
-    pool, deep = build_pool(meta, fame)
+def generate(G, meta, fame, honors, prod, epoch, days, existing, today, seasons, offline, overrides, seed=20021):
+    pool, deep = build_pool(meta, fame, honors, prod)
+    print(f"star pool {len(pool)}, deep-cut pool {len(deep)}")
     pidx = [G.idx[p] for p in pool]
     print(f"BFS from {len(pool)} endpoints ...", flush=True)
     t = time.time()
@@ -335,13 +377,13 @@ def generate(G, meta, fame, epoch, days, existing, today, seasons, offline, over
         else:
             drow, crow = dist[i], cnt[i]
         e = G.idx[b]
-        par = int(drow[e])
+        best = int(drow[e])
         path = G.path(drow, e, fame)
         links = []
         for x, y in zip(path, path[1:]):
             t, s = G.shared(x, y)[0]
             links.append([t, int(s)])
-        return {"date": date, "start": a, "end": b, "par": par, "kind": kind, "theme": theme,
+        return {"date": date, "start": a, "end": b, "best": best, "par": best + PAR_OFFSET, "kind": kind, "theme": theme,
                 "chain": [G.ids[x] for x in path], "links": links, "optimal": int(crow[e])}
 
     used_pairs = set()
@@ -356,14 +398,17 @@ def generate(G, meta, fame, epoch, days, existing, today, seasons, offline, over
         prev = old.get(date)
         if prev and date <= today:
             keep = dict(prev)  # frozen: already playable
+            if "best" not in keep:  # format migration only: old files stored par = fewest links
+                keep["best"], keep["par"] = keep["par"], keep["par"] + PAR_OFFSET
         elif date in overrides:
             o = overrides[date]
             keep = make(date, o["start"], o["end"], kind, o.get("theme"))
         elif prev and prev["start"] in G.idx and prev["end"] in G.idx:
             again = make(date, prev["start"], prev["end"], kind, prev.get("theme"))
-            keep = again if again["par"] == prev["par"] and again["par"] >= 2 else None
+            prev_best = prev.get("best", prev["par"])
+            keep = again if again["best"] == prev_best and again["best"] >= 2 else None
             if keep is None:
-                print(f"  {date}: par changed {prev['par']} -> {again['par']}, regenerating")
+                print(f"  {date}: fewest links changed {prev_best} -> {again['best']}, regenerating")
         else:
             keep = None
         if keep is None:
@@ -380,7 +425,7 @@ def generate(G, meta, fame, epoch, days, existing, today, seasons, offline, over
                 else:
                     fr = sorted(TEAMS)[(n // 7) % 32]
                     theme, side_a, side_b = f"{TEAMS[fr][1]} weekend", fr, fr
-            par, lo, hi, deep_p, size = DIFFICULTY[kind]
+            par, lo, hi, deep_p, size = DIFFICULTY[kind]  # `par` here is the fewest-links target
             ctx = (G, pool[:size], deep, col, dist, cnt, meta, fame, franchises, used_pairs, recent, rng)
             tries = [(par, lo, hi, rng.random() < deep_p, side_a, side_b)]
             if theme:
@@ -399,7 +444,7 @@ def generate(G, meta, fame, epoch, days, existing, today, seasons, offline, over
         keep["n"] = n
         used_pairs.add(frozenset((keep["start"], keep["end"])))
         recent = (recent + [keep["start"], keep["end"]])[-90:]
-        out.append({k: keep[k] for k in ("n", "date", "start", "end", "par", "kind", "theme", "chain", "links", "optimal")})
+        out.append({k: keep[k] for k in ("n", "date", "start", "end", "best", "par", "kind", "theme", "chain", "links", "optimal")})
     return out
 
 
@@ -470,7 +515,8 @@ def main():
     print(f"Loading seasons {seasons[0]}-{seasons[-1]} ...")
     players, stats, rosters, stints = load(seasons, args.offline)
 
-    fame = fame_scores(stats, stints, players)
+    honors = load_honors(args.offline)
+    fame, prod = fame_scores(stats, stints, players, honors)
     master = players.drop_duplicates("gsis_id").set_index("gsis_id")
     rnames = rosters.drop_duplicates("gsis_id", keep="last").set_index("gsis_id")
     meta = {}
@@ -482,6 +528,7 @@ def main():
         if pd.isna(pos) or not pos:
             pos = rnames.at[pid, "position"] if pid in rnames.index else ""
         meta[pid] = {"name": str(name), "pos": str(pos or ""), "first": int(g.season.min()), "last": int(g.season.max()),
+                     "games": int(g.games.sum()),
                      "stints": encode_stints(zip(g.team, g.season))}
     order = sorted(meta, key=lambda p: (-fame[p], meta[p]["name"], p))
     print(f"{len(order)} players, {len(stints)} stints, {stints[['team', 'season']].drop_duplicates().shape[0]} team-seasons")
@@ -504,7 +551,7 @@ def main():
     old = existing.get("puzzles", [])
     if args.regen_future:
         old = [p for p in old if p["date"] <= today]
-    puzzles = generate(G, meta, fame, epoch, days, old, today, seasons, args.offline, overrides)
+    puzzles = generate(G, meta, fame, honors, prod, epoch, days, old, today, seasons, args.offline, overrides)
     write_json(ppath, {"v": 1, "sport": SPORT, "epoch": epoch, "tz": "America/New_York", "puzzles": puzzles})
 
     report(G, meta, fame, puzzles, order)
@@ -541,13 +588,13 @@ def write_json(path, obj):
 
 def report(G, meta, fame, puzzles, order):
     from collections import Counter
-    print("par distribution:", dict(sorted(Counter(p["par"] for p in puzzles).items())))
-    print("by weekday:", {k: dict(Counter(p["par"] for p in puzzles if p["kind"] == k)) for k in KIND})
+    print("fewest-links distribution:", dict(sorted(Counter(p["best"] for p in puzzles).items())), f"(par = fewest + {PAR_OFFSET})")
+    print("by weekday:", {k: dict(Counter(p["best"] for p in puzzles if p["kind"] == k)) for k in KIND})
     for p in puzzles[:7]:
         steps = [meta[p["chain"][0]]["name"]]
         for (t, s), pid in zip(p["links"], p["chain"][1:]):
             steps.append(f"--{team_label(t, s)}--> {meta[pid]['name']}")
-        print(f"#{p['n']} {p['date']} {p['kind']} par {p['par']} optimal {p['optimal']} {p['theme'] or ''}\n   " + " ".join(steps))
+        print(f"#{p['n']} {p['date']} {p['kind']} best {p['best']} par {p['par']} optimal {p['optimal']} {p['theme'] or ''}\n   " + " ".join(steps))
 
 
 if __name__ == "__main__":

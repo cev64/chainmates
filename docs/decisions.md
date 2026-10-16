@@ -33,7 +33,25 @@ Apply the same rule as for the NFL: use no scraping of sites whose terms forbid 
 - **Deep cuts:** about 30% of Fridays use one endpoint from fame ranks 400–1200.
 - **Difficulty** comes from par plus the number of optimal routes, not par alone. Par 4 doesn't exist among recognisable players since 2002 (see `spec.md`).
 
-## iOS architecture: run `handoff-core.js` in JavaScriptCore; keep search and UI native
+## Playtest round 1 (Charlie, Oct 17, 2026)
+
+- **Par = fewest links + 1.**
+  - An optimal chain is a **Birdie** (−1), and one extra link is Par.
+  - Puzzles store `best` (fewest links) and `par`. The difficulty calendar is written in terms of `best`.
+- **Hints reveal a team-season and a position.**
+  - They point at the most famous player who fits the next link on an optimal path, for example "Go deep: a wide receiver on the 2012 Broncos is wide open."
+  - The copy is per position group in `web/sports.js`. Templates are picked per puzzle and chain position, so a reload shows the same line.
+- **Stars-only endpoints.** Charlie watches a lot of football and didn't know several endpoints, because the fame score was stats volume and rewarded long careers.
+  - Fame now adds Pro Bowls, All-Pros and the Hall of Fame from nflverse `draft_picks`.
+  - **What counts as a star:**
+    - 2+ Pro Bowls, an All-Pro, the Hall of Fame, or 1 Pro Bowl for players who debuted in 2020 or later
+    - undrafted players with a big production line (Romo, Gates, Welker)
+    - at least 48 games since 2002
+    - real offensive or defensive production, so kick returners and pre-2002 careers are out
+  - **Pool sizes:** Monday uses the top 120 stars, Tuesday and Thursday the top 200, other days all ~314 stars.
+  - **Friday deep cuts** (20% of Fridays) are one-time Pro Bowlers or long productive careers.
+
+: run `handoff-core.js` in JavaScriptCore; keep search and UI native
 
 Pigskin Pantheon runs its whole site engine in a hidden WKWebView, because its engine is large and DOM-adjacent. Chainmates' core is different. It is about 430 lines of pure ES2018 with no DOM, fetch, timers or Intl dependency (Intl has a fallback), and it is exported as a UMD.
 

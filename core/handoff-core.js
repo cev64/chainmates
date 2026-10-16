@@ -296,7 +296,8 @@
 
   function newGame(puzzle, opts) {
     return {
-      n: puzzle.n, start: puzzle.start, end: puzzle.end, par: puzzle.par,
+      // best = fewest links possible; par = best + 1 in current data (older data had par = best).
+      n: puzzle.n, start: puzzle.start, end: puzzle.end, par: puzzle.par, best: puzzle.best != null ? puzzle.best : puzzle.par,
       chain: [puzzle.start], downs: opts && opts.downs > 0 ? opts.downs : DOWNS,
       inc: 0, hints: 0, hintAt: {}, status: 'playing', log: [],
     };
@@ -347,34 +348,43 @@
     if (s.downs <= 1) return { state: s, error: 'last-down' };
     const sp = shortestPath(idx, last, s.end);
     if (!sp || sp.dist < 1) return { state: s, error: 'none' };
-    const h = { team: sp.links[0].team, season: sp.links[0].season };
+    // The next step on an optimal path, through its most famous candidate (shortestPath prefers
+    // famous players): reveal the team-season and that player's position, never the name.
+    const nxt = player(idx, sp.path[1]);
+    const h = { team: sp.links[0].team, season: sp.links[0].season, pos: nxt ? nxt.pos : '' };
     s.hintAt[last] = h;
     s.hints++; s.downs--;
     s.log.push({ t: 'h', team: h.team, season: h.season });
     return { state: s, hint: Object.assign({}, h) };
   }
 
+  const UNDER = { '-1': 'Birdie', '-2': 'Eagle', '-3': 'Albatross' };
+  /** Golf scoring: over = links - par. Under par is possible (par = best + 1), but never below best. */
   function score(state) {
     const links = state.chain.length - 1;
     const won = state.status === 'won';
-    const over = Math.max(0, links - state.par);
-    const label = state.status === 'lost' ? 'X' : over === 0 ? 'Par' : '+' + over;
-    return { links, par: state.par, over, label, won };
+    const best = state.best != null ? state.best : state.par;
+    const over = Math.max(best, links) - state.par;
+    const label = state.status === 'lost' ? 'X' : over === 0 ? 'Par' : over > 0 ? '+' + over : UNDER[over] || String(over);
+    return { links, par: state.par, best, over, label, won };
   }
 
   function shareText(puzzle, state, opts) {
     const url = (opts && opts.url) || 'cev64.github.io/handoff/';
-    const sc = score(state), par = puzzle.par, over = Math.max(0, sc.links - par);
-    const title = (opts && opts.title) || 'Chainmates';
-    const emoji = (opts && opts.emoji) || '\u{1F3C8}';
+    const sc = score(state), par = puzzle.par, over = sc.over;
+    const o = opts || {};
+    const title = o.title || 'Chainmates';
+    const emoji = o.emoji || '\u{1F3C8}';
+    const miss = o.miss || 'incompletion', lost = o.lost || 'Turnover on downs';
     const lines = [title + ' #' + puzzle.n + ' ' + emoji];
     if (sc.won) {
       const squares = '\u{1F7E9}'.repeat(Math.min(sc.links, par)) + '\u{1F7E8}'.repeat(Math.max(0, sc.links - par));
-      lines.push(squares + ' ' + sc.links + ' links \u00b7 Par ' + par + (over === 0 ? ' \u26f3' : ' (+' + over + ')'));
+      const tail = over === 0 ? ' \u26f3' : over > 0 ? ' (+' + over + ')' : ' \u00b7 ' + sc.label + ' \u{1F426}';
+      lines.push(squares + ' ' + sc.links + ' link' + (sc.links === 1 ? '' : 's') + ' \u00b7 Par ' + par + tail);
     } else {
-      lines.push('\u{1F3F3}\ufe0f Turnover on downs \u00b7 Par ' + par);
+      lines.push('\u{1F3F3}\ufe0f ' + lost + ' \u00b7 Par ' + par);
     }
-    if (state.inc > 0) lines.push('\u{1F7E5} ' + state.inc + ' incompletion' + (state.inc === 1 ? '' : 's'));
+    if (state.inc > 0) lines.push('\u{1F7E5} ' + state.inc + ' ' + miss + (state.inc === 1 ? '' : 's'));
     if (state.hints > 0) lines.push('\u{1F4A1} ' + state.hints + ' hint' + (state.hints === 1 ? '' : 's'));
     lines.push(url + '#' + puzzle.n);
     return lines.join('\n');
@@ -384,7 +394,7 @@
 
   function newStats() {
     return { v: 1, played: 0, won: 0, cur: 0, max: 0, parCur: 0, parMax: 0, last: 0, lastWon: 0,
-      hist: { 0: 0, 1: 0, 2: 0, 3: 0, X: 0 }, results: {} };
+      hist: { '-1': 0, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 }, results: {} };
   }
 
   /** Record a finished DAILY game (callers must not record archive/practice plays). No-op if already recorded or unfinished. */
@@ -396,11 +406,13 @@
     st.results[n] = { links: sc.links, par: sc.par, inc: state.inc, hints: state.hints, won: sc.won };
     if (sc.won) {
       st.won++;
-      st.hist[Math.min(3, sc.over)]++;
+      const b = Math.max(-1, Math.min(3, sc.over));
+      st.hist[b] = (st.hist[b] || 0) + 1;
       st.cur = stats.cur > 0 && stats.lastWon === n - 1 ? stats.cur + 1 : 1;
       st.lastWon = Math.max(stats.lastWon, n);
-      // parCur > 0 means the previous daily result was a par finish, so `last` is that puzzle number.
-      st.parCur = sc.over === 0 ? (stats.parCur > 0 && stats.last === n - 1 ? stats.parCur + 1 : 1) : 0;
+      // Par streak = consecutive dailies at par or better. parCur > 0 means the previous daily
+      // result was one, so `last` is that puzzle number.
+      st.parCur = sc.over <= 0 ? (stats.parCur > 0 && stats.last === n - 1 ? stats.parCur + 1 : 1) : 0;
     } else {
       st.hist.X++;
       st.cur = 0;
