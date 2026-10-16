@@ -78,7 +78,7 @@ def main():
     check(not any(t in ("SEA", "LA") for t, _ in ix.of[brady]), "Brady must not have Super Bowl opponent stints")
 
     epoch = dt.date.fromisoformat(pz["epoch"])
-    pairs = set()
+    pairs = {}
     for i, p in enumerate(pz["puzzles"]):
         tag = f"#{p['n']}"
         check(p["n"] == i + 1, f"{tag}: numbering")
@@ -91,8 +91,9 @@ def main():
             check((t, s) in ix.of[a] and (t, s) in ix.of[b], f"{tag}: {ix.name[a]}-{ix.name[b]} not on {s} {t}")
         check(ix.dist(p["start"], p["end"]) == p["best"], f"{tag}: best is not the shortest path")
         pair = frozenset((p["start"], p["end"]))
-        check(pair not in pairs, f"{tag}: repeated pair")
-        pairs.add(pair)
+        check(p["n"] - pairs.get(pair, -10**9) >= 365, f"{tag}: pair repeated within a year")
+        pairs[pair] = p["n"]
+        check(not {ix.name[p["start"]], ix.name[p["end"]]} & {"Aaron Hernandez", "Henry Ruggs III"}, f"{tag}: blocked endpoint")
     # Prime-time puzzles feature a current player from that night's game; never two players from way back.
     cur = pj["seasons"][1]
     last = {pid: max(s for _, s in ix.of[pid]) for pid in ix.of}
@@ -113,7 +114,7 @@ def main():
     for p in pz["puzzles"]:
         tag = f"#{p['n']}"
         ends = (p["start"], p["end"])
-        check(all(first[e] >= 2011 for e in ends), f"{tag}: an endpoint started before 2011")
+        check(all(first[e] >= 2009 for e in ends), f"{tag}: an endpoint started before 2009")
         d = sum(pos[e] in defense for e in ends)
         check(d <= 1, f"{tag}: two defenders")
         n_def += d

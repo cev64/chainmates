@@ -100,6 +100,13 @@ Apply the same rule as for the NFL: use no scraping of sites whose terms forbid 
 - **No 3-in-the-middle days:** that never happens between post-2010 stars.
 - **Pool for 2-in-the-middle days:** stars come first. When star pairs run out, the far end may be a wider post-2010 fantasy name.
 
+## Five 2-in-the-middle days, 2009 class (Charlie, Oct 16, 2026)
+
+- **Calendar:** 2 in the middle on Tuesday, Thursday, Friday, Saturday and Sunday. 1 on Monday and Wednesday.
+- **Entry year moved to 2009** (Charlie) for enough 2-in-the-middle pairs. That brings in Stafford, Gronk, Antonio Brown and others.
+- **Rolling caps:** 8 appearances per player in any 365 days, and pairs may repeat after a year. A simulated second year still filled every 2-in-the-middle day.
+- **Off-field crimes:** players best known for them are never endpoints (`NOT_ENDPOINTS`).
+
 ## iOS architecture: run `handoff-core.js` in JavaScriptCore; keep search and UI native
 
 Pigskin Pantheon runs its whole site engine in a hidden WKWebView, because its engine is large and DOM-adjacent. Chainmates' core is different. It is about 430 lines of pure ES2018 with no DOM, fetch, timers or Intl dependency (Intl has a fallback), and it is exported as a UMD.

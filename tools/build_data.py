@@ -218,7 +218,10 @@ def fame_scores(stats, stints, players, honors):
     return fame, prod.to_dict(), {"career": ppr.to_dict(), "best": ppr_best.to_dict()}
 
 
-ENTRY_MIN = 2011  # endpoints entered the league (drafted, or undrafted rookie year) after 2010
+ENTRY_MIN = 2009  # endpoints entered the league (drafted, or undrafted rookie year) in 2009 or later
+# Never the face of a puzzle (they still count as teammates in chains): players best known for
+# crimes off the field.
+NOT_ENDPOINTS = {"Aaron Hernandez", "Henry Ruggs III", "Henry Ruggs"}
 
 
 def known_since_2002(pid, meta, prod):
@@ -228,7 +231,7 @@ def known_since_2002(pid, meta, prod):
 def is_star(pid, meta, honors, ppr):
     """Offensive endpoint: a fantasy-relevant QB/RB/WR/TE who entered the league after 2010."""
     m = meta[pid]
-    if m["pos"] not in OFFENSE_POS or m["entry"] < ENTRY_MIN or m["games"] < 24:
+    if m["pos"] not in OFFENSE_POS or m["entry"] < ENTRY_MIN or m["games"] < 24 or m["name"] in NOT_ENDPOINTS:
         return False
     pb, ap, _ = honors.get(pid, (0, 0, False))
     # Honors count only with a real fantasy season behind them: return specialists make Pro Bowls too.
@@ -241,7 +244,7 @@ def is_star(pid, meta, honors, ppr):
 def is_elite_defender(pid, meta, honors):
     """Defenders only when they're household names: multiple All-Pros or a pile of Pro Bowls."""
     m = meta[pid]
-    if m["pos"] not in DEFENSE_POS or m["entry"] < ENTRY_MIN:
+    if m["pos"] not in DEFENSE_POS or m["entry"] < ENTRY_MIN or m["name"] in NOT_ENDPOINTS:
         return False
     pb, ap, hof = honors.get(pid, (0, 0, False))
     return hof or ap >= 3 or (ap >= 2 and pb >= 6)
@@ -316,8 +319,8 @@ class Graph:
 PAR_OFFSET = 1
 # Endpoints are fantasy-relevant offensive stars who entered the league after 2010 (the top `pool`
 # of them by fame, picked with a lean toward fame). About one puzzle in eight swaps one end for an
-# elite defender. Charlie likes two players in the middle (best = 3), so four days a week aim for
-# that; the rest have one in the middle with plenty of routes. Three in the middle (best = 4)
+# elite defender. Charlie likes two players in the middle (best = 3), so five days a week aim for
+# that; Monday and Wednesday have one in the middle with plenty of routes. Three in the middle (best = 4)
 # doesn't exist between post-2010 stars: the league is too connected.
 # kind: (best = fewest links, min optimal routes, max optimal routes, pool)
 DIFFICULTY = {
@@ -326,11 +329,12 @@ DIFFICULTY = {
     "wed": (2, 6, 10**9, 160),
     "thu": (3, 1, 10**9, 10**9),
     "fri": (3, 1, 10**9, 10**9),
-    "sat": (2, 4, 10**9, 10**9),
+    "sat": (3, 1, 10**9, 10**9),
     "sun": (3, 1, 10**9, 10**9),
 }
 DEF_CHANCE = 0.12
-MAX_USES = 6       # times a player can be an endpoint across the generated year
+MAX_USES = 8       # times a player can be an endpoint in any 365 days
+REPEAT_AFTER = 365 # days before the same pair of endpoints can come back
 KIND = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
@@ -346,6 +350,7 @@ def build_pool(meta, fame, honors, ppr):
     # Two-in-the-middle pairs between stars are rare (their careers overlap too much), so on those
     # days the far end may come from a wider pool of post-2010 fantasy-relevant players.
     wide = [p for p in ranked if meta[p]["pos"] in OFFENSE_POS and meta[p]["entry"] >= ENTRY_MIN
+            and meta[p]["name"] not in NOT_ENDPOINTS
             and meta[p]["games"] >= 24 and (ppr["career"].get(p, 0) >= 600 or ppr["best"].get(p, 0) >= 200)]
     return off, dfn, wide
 
@@ -406,6 +411,7 @@ def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, 
             ids = sorted((G.ids[i] for i in members), key=lambda p: -fame[p])
             roster[t] = [p for p in ids if p in star_set or p in def_set]
             roster_wide[t] = [p for p in ids if meta[p]["pos"] in OFFENSE_POS and meta[p]["entry"] >= ENTRY_MIN
+                              and meta[p]["name"] not in NOT_ENDPOINTS
                               and (ppr["career"].get(p, 0) >= 600 or ppr["best"].get(p, 0) >= 200)][:ROSTER_STARS]
     on_roster = {t: set(roster[t]) | set(roster_wide[t]) for t in set(roster) | set(roster_wide)}
     sources = list(dict.fromkeys(pool + defs + [p for t in on_roster for p in on_roster[t]]))
@@ -450,8 +456,8 @@ def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, 
                 "theme": theme, "game": game, "chain": [G.ids[x] for x in path], "links": links,
                 "optimal": int(crow[e])}
 
-    used_pairs = set()
-    uses = defaultdict(int)  # endpoint appearances, capped at MAX_USES so the same faces don't dominate
+    used_pairs = {}          # pair -> puzzle number it last appeared on
+    uses = defaultdict(list) # endpoint -> puzzle numbers, capped at MAX_USES per rolling year
     recent = []  # endpoints used in the last ~45 days
     out = []
     start_date = dt.date.fromisoformat(epoch)
@@ -487,7 +493,7 @@ def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, 
             keep = None
         if keep is None:
             best, lo, hi, size = DIFFICULTY[kind]
-            ctx = (G, col, dist, cnt, meta, fame, used_pairs, recent, rng, uses, modern)
+            ctx = (G, col, dist, cnt, meta, fame, used_pairs, recent, rng, uses, modern, n)
             off = pool[:size]
             use_def = rng.random() < DEF_CHANCE   # now and then one end is an elite defender
             tries = []
@@ -516,9 +522,9 @@ def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, 
             a, b = keep
             keep = make(date, a, b, kind, game_theme(g) if g else None, game)
         keep["n"] = n
-        used_pairs.add(frozenset((keep["start"], keep["end"])))
-        uses[keep["start"]] += 1
-        uses[keep["end"]] += 1
+        used_pairs[frozenset((keep["start"], keep["end"]))] = n
+        uses[keep["start"]].append(n)
+        uses[keep["end"]].append(n)
         recent = (recent + [keep["start"], keep["end"]])[-40:]   # ~3 weeks before an endpoint returns
         out.append({k: keep.get(k) for k in ("n", "date", "start", "end", "best", "par", "kind", "theme", "game",
                                              "chain", "links", "optimal")})
@@ -529,15 +535,17 @@ def pick(ctx, want, lo, hi, a_pool, b_pool):
     """One endpoint from a_pool (tonight's rosters, the defenders, or the stars), the other an
     offensive star from b_pool. At least one played in the last five seasons. Which end is which
     is a coin flip."""
-    G, col, dist, cnt, meta, fame, used, recent, rng, uses, modern = ctx
-    recent = {p for p in recent} | {p for p, k in uses.items() if k >= MAX_USES}
+    G, col, dist, cnt, meta, fame, used, recent, rng, uses, modern, n = ctx
+    capped = {p for p, ns in uses.items() if sum(n - k < 365 for k in ns) >= MAX_USES}
+    recent = set(recent) | capped
+    fresh = lambda pr: n - used.get(pr, -10**9) >= REPEAT_AFTER
     # Weighted shuffle (Efraimidis-Spirakis) leaning toward famous players.
     cands_a = sorted((p for p in a_pool if p not in recent),
                      key=lambda p: -rng.random() ** (1 / max(fame[p] / 999, 0.05) ** 2))
     for a in cands_a:
         drow, crow = dist[col[a]], cnt[col[a]]
         bs = [p for p in b_pool if p != a and p not in recent and drow[G.idx[p]] == want
-              and lo <= crow[G.idx[p]] <= hi and frozenset((a, p)) not in used
+              and lo <= crow[G.idx[p]] <= hi and fresh(frozenset((a, p)))
               and (modern(a) or modern(p))]   # never two players who have both been gone for years
         if not bs:
             continue

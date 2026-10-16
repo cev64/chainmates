@@ -17,23 +17,22 @@ So difficulty comes from **`best` (the fewest links possible) and the number of 
 | Mon | 2 | 1 player | ≥ 20 | top 80 offensive stars |
 | Tue | 3 | 2 players | any | all stars; far end may be a wider fantasy name |
 | Wed | 2 | 1 | ≥ 6 | top 160 |
-| Thu | 3 | 2 | any | as Tue |
-| Fri | 3 | 2 | any | as Tue |
-| Sat | 2 | 1 | ≥ 4 | all stars |
-| Sun | 3 | 2 | any | as Tue |
+| Thu, Fri, Sat, Sun | 3 | 2 | any | as Tue |
 
-- **Fallback:** a 2-in-the-middle day falls back to 1 in the middle when no unused pair fits. That happens on about a third of those days.
-- **Three in the middle (best 4)** doesn't exist between post-2010 stars, because the league is too connected.
-- **The wider far-end pool:** a 2-in-the-middle pair needs two careers that barely overlap, so one end may come from post-2010 QB/RB/WR/TE players with a 600-point PPR career or a 200-point season. The other end is always a star.
+- **2 in the middle, 5 days a week** (Charlie). About 264 such puzzles a year. A day falls back to 1 in the middle only when no fresh pair fits; in a simulated second year that never happened.
+- **Three in the middle (best 4)** doesn't exist between post-2009 stars, because the league is too connected.
+- **The wider far-end pool:** a 2-in-the-middle pair needs two careers that barely overlap, so one end may come from post-2009 QB/RB/WR/TE players with a 600-point PPR career or a 200-point season. The other end is always a star.
+- **Supply over time:** an endpoint appears at most 8 times in any 365 days, and a pair can come back after 365 days. New rookie classes add fresh pairs every year.
+- **Not endpoints:** players best known for crimes off the field, listed in `NOT_ENDPOINTS` in `build_data.py`. They still count as teammates in chains.
 
 **Who can be an endpoint** (round 3: friends found the first version too hard):
-- **Entry year:** every endpoint entered the league in 2011 or later. That's the draft year, or the rookie season if undrafted, from nflverse `players`.
+- **Entry year:** every endpoint entered the league in 2009 or later. That's the draft year, or the rookie season if undrafted, from nflverse `players`.
 - **Offensive stars (QB/RB/WR/TE):**
   - Pro Bowls or All-Pros backed by a real fantasy season: 2+ Pro Bowls, an All-Pro, or 1 Pro Bowl for players who debuted in 2020 or later, plus a 150-point PPR season.
   - Or a 1,100-point PPR career.
   - Or one 260-point PPR season.
 - **Elite defenders:** 3+ All-Pros, or 2 All-Pros and 6 Pro Bowls. About one puzzle in eight swaps one end for one, and a puzzle never has two.
-- **Repeats:** an endpoint appears at most 6 times a year, and not again within about 3 weeks.
+- **Repeats:** an endpoint appears at most 8 times in any 365 days, and not again within about 3 weeks. The same pair can return after a year.
 - **Era:** at least one endpoint played in the last five seasons. Start and finish order is random.
 - **Data:** honors come from nflverse `draft_picks`, and fantasy points from `stats_player` (`fantasy_points_ppr`, regular season).
 
