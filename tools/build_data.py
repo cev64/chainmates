@@ -399,7 +399,7 @@ def game_theme(game):
     return f"{game['label']}: {tt[game['away']]['name']} at {tt[game['home']]['name']}"
 
 
-def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, offline, overrides, seed=20021):
+def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, offline, overrides, remake=(), seed=20021):
     pool, defs, wide = build_pool(meta, fame, honors, ppr)
     cur = seasons[-1]
     star_set, def_set = set(pool), set(defs)
@@ -462,13 +462,21 @@ def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, 
     out = []
     start_date = dt.date.fromisoformat(epoch)
     old = {p["date"]: p for p in existing}
+    # Pairs already scheduled count as used, so a re-picked day never duplicates a later one.
+    for p in existing:
+        used_pairs[frozenset((p["start"], p["end"]))] = p["n"]
     for n in range(1, days + 1):
         day = start_date + dt.timedelta(days=n - 1)
         date, kind = day.isoformat(), KIND[day.weekday()]
         g = prime.get(date)
         game = {k: g[k] for k in ("slot", "away", "home")} if g else None
         prev = old.get(date)
-        if prev and date <= today:
+        if prev and date in remake:
+            # Re-pick this date even if it's frozen (Charlie asked), never with the same pair.
+            print(f"  {date}: remaking #{n} on request")
+            used_pairs[frozenset((prev["start"], prev["end"]))] = n
+            keep = None
+        elif prev and date <= today:
             keep = dict(prev)  # frozen: already playable
             if "best" not in keep:  # format migration only: old files stored par = fewest links
                 keep["best"], keep["par"] = keep["par"], keep["par"] + PAR_OFFSET
@@ -590,6 +598,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--rebuild", action="store_true", help="ignore existing puzzles.json")
+    ap.add_argument("--remake", action="append", default=[], metavar="YYYY-MM-DD",
+                    help="re-pick the puzzle on this date even if it's today or earlier (repeatable)")
     ap.add_argument("--regen-future", action="store_true",
                     help="re-pick every puzzle after today (keeps today and earlier); use after changing the picker")
     ap.add_argument("--epoch", default=None, help="date of puzzle #1 (YYYY-MM-DD)")
@@ -640,7 +650,8 @@ def main():
     old = existing.get("puzzles", [])
     if args.regen_future:
         old = [p for p in old if p["date"] <= today]
-    puzzles = generate(G, meta, fame, honors, ppr, epoch, days, old, today, seasons, args.offline, overrides)
+    puzzles = generate(G, meta, fame, honors, ppr, epoch, days, old, today, seasons, args.offline, overrides,
+                       remake=set(args.remake))
     write_json(ppath, {"v": 1, "sport": SPORT, "epoch": epoch, "tz": "America/New_York", "puzzles": puzzles})
 
     report(G, meta, fame, puzzles, order)

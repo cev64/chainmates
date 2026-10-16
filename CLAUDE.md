@@ -14,6 +14,7 @@ Read these before changing anything:
 - Rebuild data: `pip install -r tools/requirements.txt && python3 tools/build_data.py`.
   - `--offline` uses the `.cache/` downloads.
   - `--rebuild --epoch YYYY-MM-DD` renumbers every puzzle. Only do this before launch.
+  - `--remake YYYY-MM-DD` re-picks one date, even today or earlier. Only when Charlie asks.
 - Site locally: `tools/dev.sh`, then open http://localhost:8765.
 - Build the deployable site: `tools/build_site.sh`, which writes `_site/`.
 
