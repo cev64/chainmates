@@ -77,6 +77,22 @@ Apply the same rule as for the NFL: use no scraping of sites whose terms forbid 
 - **Hard stays the default** (Charlie). Only a choice made before the first move changes the saved default. Dropping to easy mid-game applies to that puzzle only.
 - **Hero and help dialog.** The hero shows only "Par N". The puzzle explainer ("birdie in 4 · eagle in 3 … the shortest chain takes 3 links") lives in the ? dialog.
 
+## Playtest round 3: friends found it too hard (Charlie, Oct 16, 2026)
+
+- **Every endpoint entered the league after 2010:** drafted in 2011 or later, or an undrafted rookie from 2011 on.
+- **Fantasy positions first.**
+  - Endpoints are QB/RB/WR/TE stars, meaning a real fantasy season backed by Pro Bowls or All-Pros, a 1,100-point PPR career, or a 260-point PPR season.
+  - A Pro Bowl only counts with a 150-point PPR season, so return specialists are out.
+- **Defenders only if they're household names:** 3+ All-Pros, or 2 All-Pros and 6 Pro Bowls (Aaron Donald, T.J. Watt, Micah Parsons…).
+  - About one puzzle in eight has one.
+  - A puzzle never has two.
+- **Easier calendar.**
+  - Monday through Thursday and Saturday are 2-link puzzles with plenty of routes.
+  - Friday and Sunday are the 3-link days.
+  - Friday deep cuts are gone.
+- **Variety.** A player appears as an endpoint at most 6 times a year, and not again within about 3 weeks.
+- **Rebuilt in full.** All puzzles, including the ones already played, were remade with these rules (Charlie). Numbering is unchanged: No. 1 is still Oct 12.
+
 ## iOS architecture: run `handoff-core.js` in JavaScriptCore; keep search and UI native
 
 Pigskin Pantheon runs its whole site engine in a hidden WKWebView, because its engine is large and DOM-adjacent. Chainmates' core is different. It is about 430 lines of pure ES2018 with no DOM, fetch, timers or Intl dependency (Intl has a fallback), and it is exported as a UMD.

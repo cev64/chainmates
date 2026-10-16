@@ -12,15 +12,26 @@ NFL rosters carry 53 or more players, so the teammate graph is very dense:
 
 So difficulty comes from **`best` (the fewest links possible) and the number of optimal routes**. Pairs with a best of 2 have a median of 15 optimal routes; pairs with a best of 3 have a median of about 500. Par depends on the game mode (`best + 1` in easy, `best + 2` in hard; see "Rules"), so none of the numbers below are par.
 
-| Day | Best (fewest links) | Optimal routes | Endpoint pool | Notes |
-|---|---|---|---|---|
-| Mon | 2 | ≥ 20 | top 120 stars | easy |
-| Tue | 2 | 8–19 | top 200 stars | |
-| Wed | 3 | any | top 300 stars | |
-| Thu | 2 | 3–7 | top 200 stars | you need to know one of the few links |
-| Fri | 3 | ≤ 300 | top 300 stars | about 20% of Fridays use a "deep cut" endpoint: a one-time Pro Bowler or a long, productive career |
-| Sat | 3 (falls back to 2) | any | all stars | |
-| Sun | 3 (falls back to 2) | any | all stars | |
+| Day | Best (fewest links) | Optimal routes | Endpoint pool |
+|---|---|---|---|
+| Mon | 2 | ≥ 20 | top 80 offensive stars |
+| Tue | 2 | ≥ 12 | top 120 |
+| Wed | 2 | ≥ 6 | top 160 |
+| Thu | 2 | ≥ 4 | top 160 |
+| Fri | 3 (falls back to 2) | any | top 200 |
+| Sat | 2 | ≥ 4 | all |
+| Sun | 3 (falls back to 2) | any | all |
+
+**Who can be an endpoint** (round 3: friends found the first version too hard):
+- **Entry year:** every endpoint entered the league in 2011 or later. That's the draft year, or the rookie season if undrafted, from nflverse `players`.
+- **Offensive stars (QB/RB/WR/TE):**
+  - Pro Bowls or All-Pros backed by a real fantasy season: 2+ Pro Bowls, an All-Pro, or 1 Pro Bowl for players who debuted in 2020 or later, plus a 150-point PPR season.
+  - Or a 1,100-point PPR career.
+  - Or one 260-point PPR season.
+- **Elite defenders:** 3+ All-Pros, or 2 All-Pros and 6 Pro Bowls. About one puzzle in eight swaps one end for one, and a puzzle never has two.
+- **Repeats:** an endpoint appears at most 6 times a year, and not again within about 3 weeks.
+- **Era:** at least one endpoint played in the last five seasons. Start and finish order is random.
+- **Data:** honors come from nflverse `draft_picks`, and fantasy points from `stats_player` (`fantasy_points_ppr`, regular season).
 
 **Prime-time puzzles.** The latest-kickoff game on a Thursday, Saturday, Sunday night (19:00 ET or later) or Monday, plus Christmas, gets a themed puzzle:
 - **Theme:** "Thursday Night: Seahawks at Broncos". Thanksgiving's night game is "Thanksgiving Night".
@@ -28,18 +39,7 @@ So difficulty comes from **`best` (the fewest links possible) and the number of 
 - **Endpoint rule:** one endpoint is on either team's current-season roster. Stars come first, then each team's 10 most famous current players. If no such pair fits, the day falls back to a plain puzzle.
 - **Fresh schedule:** the schedule is re-read on every build, so a future puzzle is re-picked when its date's game changed (a flex, a move, or a new schedule), or when its game-day player left both rosters.
 
-**Era mix:**
-- At least one endpoint played in the last five seasons.
-- About 40% of puzzles use two current players.
-- Never two players from way back.
-- Start and finish order is random.
-
 Within each pool, endpoints are picked with a lean toward fame (a weighted shuffle), and the second endpoint prefers a different position.
-
-**What counts as a star** (endpoints are stars only, so players should be recognisable):
-- 2 or more Pro Bowls, an All-Pro selection, the Hall of Fame, or 1 Pro Bowl for players who debuted in 2020 or later. Undrafted players qualify on production instead.
-- At least 48 games since 2002, and real offensive or defensive production. Kick returners and pre-2002 careers are out.
-- Honors come from nflverse `draft_picks`. Fame adds Pro Bowls, All-Pros and the Hall of Fame on top of the stats volume.
 
 - `tools/puzzle_overrides.json` pins hand-picked pairs to dates. On a prime-time date, the game theme is kept unless the override gives its own.
 - Kickers, punters and linemen are never endpoints, though they are valid links.

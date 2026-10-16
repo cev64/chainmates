@@ -105,6 +105,19 @@ def main():
             teams = {g["away"], g["home"]}
             check(any((t, cur) in ix.of[e] for e in (p["start"], p["end"]) for t in teams),
                   f"{tag}: no endpoint is on tonight's rosters ({g['away']} at {g['home']})")
+    # Endpoints are post-2010 players, mostly fantasy positions; never two defenders.
+    pos = {pid: p for pid, _n, p, _f, _s in pj["players"]}
+    first = {pid: min(s for _, s in ix.of[pid]) for pid in ix.of}
+    defense = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "S", "FS", "SS", "DB"}
+    n_def = 0
+    for p in pz["puzzles"]:
+        tag = f"#{p['n']}"
+        ends = (p["start"], p["end"])
+        check(all(first[e] >= 2011 for e in ends), f"{tag}: an endpoint started before 2011")
+        d = sum(pos[e] in defense for e in ends)
+        check(d <= 1, f"{tag}: two defenders")
+        n_def += d
+    check(n_def <= 0.15 * len(pz["puzzles"]), f"too many defenders ({n_def})")
     print(f"{len(pz['puzzles'])} puzzles checked")
 
     for f in ("players.json", "puzzles.json"):
