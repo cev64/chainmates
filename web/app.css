@@ -309,6 +309,8 @@ b, strong { font-weight: 700; }
 .result-strip .rs-score.is-par { color: var(--brass-ink); }
 .result-strip .rs-score.is-x { color: var(--bad); }
 .result-strip small { display: block; color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+.result-strip .rs-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+@media (max-width: 420px) { .result-strip:has(.rs-actions a) { grid-template-columns: minmax(0, 1fr); } .result-strip .rs-actions { justify-content: flex-start; } }
 
 .controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; padding: 12px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .controls-btns { display: flex; gap: 4px; margin-left: auto; }

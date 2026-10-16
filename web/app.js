@@ -249,6 +249,7 @@
     if (h === 'archive') return { view: 'archive' };
     if (h === 'stats') return { view: 'stats' };
     if (/^\d{1,6}$/.test(h)) return { view: 'game', n: parseInt(h, 10) };
+    if (/^p\d{1,6}$/.test(h)) return { view: 'game', n: parseInt(h.slice(1), 10), practice: true };   // "#p42": replay as practice
     return { view: 'game', n: todayN };
   }
   function route() {
@@ -264,7 +265,10 @@
     if (r.n > todayN) { showStatus('future', r.n); return; }   // never reveal a future puzzle
     const p = H.puzzleByNumber(puzzlesJson, r.n);
     if (!p) { showStatus(r.n === todayN ? 'nopuzzle' : 'notfound', r.n); return; }
-    const mode = p.n === todayN ? 'daily' : 'practice';
+    // A past puzzle you finished as the daily opens on that result; "#p<n>" replays it as practice.
+    const daily = store.get(stateKey('daily', p.n), null);
+    const finishedDaily = validState(daily, p) && daily.status !== 'playing';
+    const mode = p.n === todayN || (finishedDaily && !r.practice) ? 'daily' : 'practice';
     const same = game && game.puzzle.n === p.n && game.mode === mode;
     if (!same) startGame(p, mode); else renderGame();
     showView('game');
@@ -399,7 +403,9 @@
     if (!playing) {
       strip.innerHTML = '<div><div class="rs-score ' + (won && sc.over === 0 ? 'is-par' : lost ? 'is-x' : '') + '">' + esc(won ? sc.label : S.lost) + '</div>' +
         '<small>' + (won ? 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par : plural(st.inc, S.miss) + ' · Par ' + st.par) + '</small></div>' +
-        '<button type="button" class="btn btn-ink" id="btnSeeResults">See results</button>';
+        '<span class="rs-actions">' +
+        (game.mode === 'daily' && game.puzzle.n !== todayN ? '<a class="btn" href="#p' + game.puzzle.n + '">Replay as practice</a>' : '') +
+        '<button type="button" class="btn btn-ink" id="btnSeeResults">See results</button></span>';
       $('#btnSeeResults').addEventListener('click', () => openResults());
     }
 
@@ -580,7 +586,8 @@
 
   /* ------------------------------------------------------------ autocomplete */
   const input = $('#guess'), acList = $('#acList'), clearBtn = $('#guessClear');
-  let acItems = [], acActive = -1, acTimer = 0;
+  // acChosen: the player moved the highlight themselves (arrows / mouse), so Enter means that row.
+  let acItems = [], acActive = -1, acTimer = 0, acChosen = false;
   const acRows = () => acList.querySelectorAll('.ac-row');
 
   function clearGuess(keepFocus) {
@@ -591,7 +598,7 @@
     if (keepFocus && document.activeElement !== input && !PHONE.matches) input.focus();
   }
   function closeAC() {
-    acItems = []; acActive = -1;
+    acItems = []; acActive = -1; acChosen = false;
     acList.hidden = true; acList.innerHTML = '';
     input.setAttribute('aria-expanded', 'false');
     input.removeAttribute('aria-activedescendant');
@@ -608,6 +615,7 @@
     if (!q.trim()) return closeAC();
     acItems = H.search(index, q, { limit: CONFIG.searchLimit, exclude: game.state.chain });
     acActive = acItems.length ? 0 : -1;
+    acChosen = false;
     renderAC(q);
   }
   function renderAC(q) {
@@ -687,11 +695,17 @@
       e.preventDefault();
       const n = acItems.length;
       acActive = e.key === 'ArrowDown' ? (acActive + 1) % n : (acActive - 1 + n) % n;
+      acChosen = true;
       syncActive(false);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (acTimer) { clearTimeout(acTimer); runSearch(); }
-      if (acActive >= 0 && acItems[acActive]) pick(acItems[acActive].id);
+      // A wrong guess costs a down, so Enter on a half-typed name doesn't guess the top row blindly:
+      // it guesses only a row the player highlighted, the only match, or an exact name match.
+      const top = acItems[acActive];
+      const sure = top && (acChosen || acItems.length === 1 || H.normalize(top.name) === H.normalize(input.value));
+      if (sure) pick(top.id);
+      else if (top) toast('Tap a name to guess', 'warn');
       else if (input.value.trim()) toast('Pick a player from the list', 'warn');
     } else if (e.key === 'Escape') {
       if (!acList.hidden) { e.preventDefault(); closeAC(); } else if (input.value) { e.preventDefault(); clearGuess(); }
@@ -704,7 +718,7 @@
     const row = e.target.closest('.ac-row');
     if (!row) return;
     const i = [...acRows()].indexOf(row);
-    if (i !== acActive) { acActive = i; syncActive(false); }
+    if (i !== acActive) { acActive = i; acChosen = true; syncActive(false); }
   });
   clearBtn.addEventListener('click', () => { clearGuess(); input.focus(); });
   document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#finder')) closeAC(); });
@@ -896,7 +910,8 @@
     for (let i = 1; i < st.chain.length; i++) myLinks.push(H.sharedTeams(index, st.chain[i - 1], st.chain[i])[0]);
     const optLinks = (pz.links || []).map((l) => ({ team: l[0], season: l[1] }));
     const atPar = won && sc.over === 0;
-    const sub = [plural(sc.links, 'link') + ' · Par ' + pz.par, plural(st.inc, S.miss), plural(st.hints, 'hint')].join(' · ');
+    // Zero counts are left out: "3 links · Par 3" reads better than "· 0 incompletions · 0 hints".
+    const sub = [plural(sc.links, 'link') + ' · Par ' + pz.par, st.inc ? plural(st.inc, S.miss) : '', st.hints ? plural(st.hints, 'hint') : ''].filter(Boolean).join(' · ');
     let sec = 0;
     const secOpen = (id) => '<section class="sheet-sec" style="--i:' + (sec++) + '" aria-labelledby="' + id + '">';
 
@@ -906,7 +921,7 @@
         '<span class="kicker">' + esc(S.title) + ' <b>No. ' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + (practice ? ' · Practice' : '') + '</span>' +
         '<div class="score-big ' + (atPar ? 'is-par' : won ? '' : 'is-x') + '" aria-hidden="true">' + esc(sc.label) + '</div>' +
         '<h2 id="sheetTitle" tabindex="-1">' + (won ? (atPar ? 'Right on par!' : 'Solved, ' + sc.label + ' over par') : esc(S.lost)) + '</h2>' +
-        '<p>' + esc(won ? sub : plural(st.inc, S.miss) + ' · ' + plural(st.hints, 'hint') + ' · Par ' + pz.par) + '</p>' +
+        '<p>' + esc(won ? sub : [plural(st.inc, S.miss), st.hints ? plural(st.hints, 'hint') : '', 'Par ' + pz.par].filter(Boolean).join(' · ')) + '</p>' +
       '</header>' +
       '<div class="sheet-body">' +
         secOpen('shTitle') + '<h3 id="shTitle">Share <span>No spoilers</span></h3>' +
@@ -918,7 +933,7 @@
         '</section>' +
         (practice ? '<p class="practice-note sheet-sec" style="--i:' + (sec++) + '">Practice replay of puzzle #' + pz.n + '. It doesn\'t count toward your stats or streaks.</p>'
           : secOpen('stTitle') + '<h3 id="stTitle">Your stats</h3>' + statTiles(loadStats()) + '</section>') +
-        secOpen('myTitle') + '<h3 id="myTitle">Your chain <span>' + plural(sc.links, 'link') + '</span></h3>' +
+        secOpen('myTitle') + '<h3 id="myTitle">Your chain <span>' + (sc.links ? plural(sc.links, 'link') : 'No links') + '</span></h3>' +
           '<ol class="mini-list">' + miniChain(st.chain, myLinks, st.end) +
           (won ? '' : '<li class="ml-link miss">' + esc(S.lost) + '</li><li><span class="ml-dot e" aria-hidden="true">' + posAbbr(H.player(index, st.end)) + '</span><span class="ml-name">' + esc(H.player(index, st.end).name) + '</span></li>') +
           '</ol></section>' +

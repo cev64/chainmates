@@ -137,6 +137,10 @@ test('search: ranking, accents, exclude, limit', () => {
   assert.deepEqual(names(H.search(idx, 'brandt tom')), ['Tom Brandt', 'Tommy Brandt Jr.']); // tokens each prefix a word
   assert.deepEqual(names(H.search(idx, "ja'marr")), ["Ja'Marr Pierce"]);
   assert.deepEqual(names(H.search(idx, 'jamarr')), ["Ja'Marr Pierce"]);
+  // a space where the name has an apostrophe (or none where it has a space) still matches
+  assert.deepEqual(names(H.search(idx, 'ja marr')), ["Ja'Marr Pierce"]);
+  assert.deepEqual(names(H.search(idx, 'ricky o neal')), ["Ricky O'Neal"]);
+  assert.deepEqual(names(H.search(idx, 'amonra')), ['Amon-Ra Stone']);
   assert.deepEqual(names(H.search(idx, 'sebastien')), ['Sébastien Lamont']);
   assert.deepEqual(names(H.search(idx, 'Sébast')), ['Sébastien Lamont']);
   assert.deepEqual(names(H.search(idx, 'munoz')), ['José Muñoz']);

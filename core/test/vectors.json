@@ -37,6 +37,8 @@
     { "query": "brandt tom", "out": ["Tom Brandt", "Tommy Brandt Jr."] },
     { "query": "sebast", "out": ["Sébastien Lamont"] },
     { "query": "jamarr", "out": ["Ja'Marr Pierce"] },
+    { "query": "ja marr", "out": ["Ja'Marr Pierce"] },
+    { "query": "amonra", "out": ["Amon-Ra Stone"] },
     { "query": "e", "limit": 3, "out": ["Peyton Marlow", "Ja'Marr Pierce", "Wes Tolliver"] },
     { "query": "zzzz", "out": [] }
   ],

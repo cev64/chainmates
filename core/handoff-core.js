@@ -52,7 +52,7 @@
       meta: { v: json.v, built: json.built, seasons: json.seasons, source: json.source },
       n,
       ids: new Array(n), names: new Array(n), pos: new Array(n), fame: new Array(n),
-      stints: new Array(n), first: new Array(n), last: new Array(n), norm: new Array(n),
+      stints: new Array(n), first: new Array(n), last: new Array(n), norm: new Array(n), flat: new Array(n),
       playerTs: new Array(n),           // i -> [t]  (team-season ids)
       byId: new Map(),                  // player id -> i
       tsId: new Map(),                  // "TEAM|season" -> t
@@ -81,6 +81,7 @@
       idx.ids[i] = r[0]; idx.names[i] = r[1]; idx.pos[i] = r[2]; idx.fame[i] = r[3];
       idx.stints[i] = st; idx.first[i] = first; idx.last[i] = last;
       idx.norm[i] = normalize(r[1]);
+      idx.flat[i] = idx.norm[i].replace(/ /g, '');
       idx.playerTs[i] = mine;
       idx.byId.set(r[0], i);
     }
@@ -227,6 +228,8 @@
     const q = normalize(query);
     if (!q) return [];
     const toks = q.split(' ');
+    // Space-free form, so "le veon" finds Le'Veon (normalized "leveon") and "jamarr" finds Ja Marr.
+    const qf = q.replace(/ /g, '');
     const hits = [];
     for (let i = 0; i < idx.n; i++) {
       if (ex.size && ex.has(idx.ids[i])) continue;
@@ -237,6 +240,8 @@
         const sp = ' ' + nm;
         if (sp.includes(' ' + q) || (toks.length > 1 && toks.every((t) => sp.includes(' ' + t)))) rank = 1;
         else if (nm.includes(q)) rank = 2;
+        else if (qf.length >= 3 && idx.flat[i].startsWith(qf)) rank = 1;
+        else if (qf.length >= 3 && idx.flat[i].includes(qf)) rank = 2;
         else continue;
       }
       hits.push([rank, idx.fame[i], i]);
