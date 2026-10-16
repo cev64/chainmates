@@ -1,0 +1,40 @@
+{
+  "v": 1,
+  "sport": "nfl",
+  "built": "2026-10-16",
+  "seasons": [2002, 2026],
+  "source": "fixture",
+  "teams": {
+    "DEN": { "name": "Broncos", "city": "Denver", "franchise": "DEN", "c1": "#FB4F14", "c2": "#002244" },
+    "OAK": { "name": "Raiders", "city": "Oakland", "franchise": "LV", "c1": "#000000", "c2": "#A5ACAF" },
+    "LV": { "name": "Raiders", "city": "Las Vegas", "franchise": "LV", "c1": "#000000", "c2": "#A5ACAF" },
+    "IND": { "name": "Colts", "city": "Indianapolis", "franchise": "IND", "c1": "#002C5F", "c2": "#A2AAAD" },
+    "NYJ": { "name": "Jets", "city": "New York", "franchise": "NYJ", "c1": "#125740", "c2": "#FFFFFF" },
+    "MIN": { "name": "Vikings", "city": "Minnesota", "franchise": "MIN", "c1": "#4F2683", "c2": "#FFC62F" },
+    "GB": { "name": "Packers", "city": "Green Bay", "franchise": "GB", "c1": "#203731", "c2": "#FFB612" },
+    "KC": { "name": "Chiefs", "city": "Kansas City", "franchise": "KC", "c1": "#E31837", "c2": "#FFB81C" },
+    "SEA": { "name": "Seahawks", "city": "Seattle", "franchise": "SEA", "c1": "#002244", "c2": "#69BE28" },
+    "WAS": { "name": "Commanders", "city": "Washington", "franchise": "WAS", "c1": "#5A1414", "c2": "#FFB612",
+             "names": [[2002, 2019, "Washington"], [2020, 2021, "Football Team"], [2022, 9999, "Commanders"]] }
+  },
+  "players": [
+    ["T001", "Peyton Marlow", "QB", 990, "IND:2002-2010;DEN:2012-2015"],
+    ["T002", "Tom Brandt", "QB", 940, "NYJ:2010;MIN:2010"],
+    ["T003", "Ja'Marr Pierce", "WR", 880, "LV:2020-2022"],
+    ["T004", "Wes Tolliver", "WR", 800, "DEN:2014-2015;OAK:2016-2017"],
+    ["T005", "Sébastien Lamont", "K", 760, "IND:2010;NYJ:2010"],
+    ["T006", "Marcus Dell", "TE", 700, "DEN:2013;OAK:2017"],
+    ["T007", "Derek Okafor", "RB", 650, "OAK:2017;LV:2020-2021"],
+    ["T008", "Amon-Ra Stone", "WR", 600, "GB:2018-2021;LV:2022"],
+    ["T009", "Sam Nguyen", "LB", 560, "MIN:2010-2011"],
+    ["T010", "Demarcus Hale", "CB", 540, "KC:2015-2019;WAS:2020"],
+    ["T011", "Tommy Brandt Jr.", "TE", 500, "KC:2018-2019"],
+    ["T012", "Cal Voss", "S", 480, "NYJ:2010-2011"],
+    ["T013", "Ricky O'Neal", "DT", 450, "WAS:2020-2021"],
+    ["T014", "Mikey Fontaine", "RB", 420, "GB:2018;KC:2019"],
+    ["T015", "José Muñoz", "G", 300, "DEN:2012-2013"],
+    ["T016", "D.J. Rader", "DT", 250, "DEN:2015"],
+    ["T017", "Lone Wolf", "P", 100, "SEA:2005"],
+    ["T018", "Zed Quill", "WR", 50, "WAS:2019;WAS:2022"]
+  ]
+}

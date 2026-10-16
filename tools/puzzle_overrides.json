@@ -1,0 +1,5 @@
+{
+  "_comment": "Hand-picked puzzles. Key = date (YYYY-MM-DD). start/end = exact display name or gsis id. Applied to future dates only; par is computed.",
+  "2026-11-26": { "start": "Tony Romo", "end": "Jared Goff", "theme": "Thanksgiving" },
+  "2026-12-25": { "start": "Travis Kelce", "end": "Jalen Hurts", "theme": "Christmas Day" }
+}

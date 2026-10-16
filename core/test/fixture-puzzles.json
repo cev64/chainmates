@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "epoch": "2026-10-12",
+  "tz": "America/New_York",
+  "puzzles": [
+    { "n": 1, "date": "2026-10-12", "start": "T001", "end": "T003", "par": 3, "kind": "mon", "theme": null,
+      "chain": ["T001", "T004", "T007", "T003"], "links": [["DEN", 2015], ["OAK", 2017], ["LV", 2021]], "optimal": 2 },
+    { "n": 2, "date": "2026-10-13", "start": "T001", "end": "T009", "par": 3, "kind": "tue", "theme": "Trade deadline",
+      "chain": ["T001", "T005", "T002", "T009"], "links": [["IND", 2010], ["NYJ", 2010], ["MIN", 2010]], "optimal": 1 },
+    { "n": 3, "date": "2026-10-14", "start": "T004", "end": "T003", "par": 2, "kind": "wed", "theme": null,
+      "chain": ["T004", "T007", "T003"], "links": [["OAK", 2017], ["LV", 2021]], "optimal": 1 }
+  ]
+}

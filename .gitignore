@@ -1,0 +1,5 @@
+.cache/
+__pycache__/
+_site/
+node_modules/
+.DS_Store

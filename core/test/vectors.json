@@ -1,0 +1,135 @@
+{
+  "_doc": "Shared test vectors for the deterministic core functions. A Swift port must reproduce every 'out'/'expect'. Fixture data: fixture-players.json, fixture-puzzles.json. Game move codes: [\"g\",id] guess, [\"u\"] undo, [\"h\"] hint. Per-move result strings: guess -> result.kind or \"rejected:<reason>\"; undo -> \"undo\"; hint -> \"hint:<TEAM>:<season>\" or \"error:<code>\".",
+  "normalize": [
+    { "in": "Ja'Marr Pierce", "out": "jamarr pierce" },
+    { "in": "Ja’Marr", "out": "jamarr" },
+    { "in": "Sébastien Lamont", "out": "sebastien lamont" },
+    { "in": "Amon-Ra  St. Brown", "out": "amon ra st brown" },
+    { "in": "D.J. Rader", "out": "dj rader" },
+    { "in": "José Muñoz", "out": "jose munoz" },
+    { "in": "  Tommy   Brandt Jr. ", "out": "tommy brandt jr" },
+    { "in": "", "out": "" }
+  ],
+  "parseStints": [
+    { "in": "DEN:2012-2014;IND:2010", "out": [["DEN", 2012], ["DEN", 2013], ["DEN", 2014], ["IND", 2010]] },
+    { "in": "NYJ:2010;MIN:2010;NE:2010", "out": [["NYJ", 2010], ["MIN", 2010], ["NE", 2010]] },
+    { "in": "OAK:2019;LV:2020-2021", "out": [["OAK", 2019], ["LV", 2020], ["LV", 2021]] },
+    { "in": "", "out": [] }
+  ],
+  "sharedTeams": [
+    { "a": "T001", "b": "T004", "out": [["DEN", 2015], ["DEN", 2014]] },
+    { "a": "T007", "b": "T003", "out": [["LV", 2021], ["LV", 2020]] },
+    { "a": "T004", "b": "T003", "out": [] }
+  ],
+  "shortestPath": [
+    { "a": "T001", "b": "T003", "dist": 3, "count": 2, "path": ["T001", "T004", "T007", "T003"] },
+    { "a": "T001", "b": "T009", "dist": 3, "count": 1, "path": ["T001", "T005", "T002", "T009"] },
+    { "a": "T004", "b": "T003", "dist": 2, "count": 1, "path": ["T004", "T007", "T003"] },
+    { "a": "T001", "b": "T004", "dist": 1, "count": 1, "path": ["T001", "T004"] },
+    { "a": "T001", "b": "T008", "dist": 4, "count": 2, "path": ["T001", "T004", "T007", "T003", "T008"] },
+    { "a": "T012", "b": "T008", "dist": 6, "count": 2, "path": ["T012", "T005", "T001", "T004", "T007", "T003", "T008"] },
+    { "a": "T001", "b": "T001", "dist": 0, "count": 1, "path": ["T001"] },
+    { "a": "T001", "b": "T017", "dist": null, "count": null, "path": null }
+  ],
+  "search": [
+    { "query": "mar", "out": ["Marcus Dell", "Peyton Marlow", "Ja'Marr Pierce", "Demarcus Hale"] },
+    { "query": "mar", "exclude": ["T006"], "out": ["Peyton Marlow", "Ja'Marr Pierce", "Demarcus Hale"] },
+    { "query": "brandt tom", "out": ["Tom Brandt", "Tommy Brandt Jr."] },
+    { "query": "sebast", "out": ["Sébastien Lamont"] },
+    { "query": "jamarr", "out": ["Ja'Marr Pierce"] },
+    { "query": "e", "limit": 3, "out": ["Peyton Marlow", "Ja'Marr Pierce", "Wes Tolliver"] },
+    { "query": "zzzz", "out": [] }
+  ],
+  "score": [
+    { "links": 3, "par": 3, "status": "won", "out": { "links": 3, "par": 3, "over": 0, "label": "Par", "won": true } },
+    { "links": 4, "par": 3, "status": "won", "out": { "links": 4, "par": 3, "over": 1, "label": "+1", "won": true } },
+    { "links": 6, "par": 3, "status": "won", "out": { "links": 6, "par": 3, "over": 3, "label": "+3", "won": true } },
+    { "links": 2, "par": 3, "status": "won", "out": { "links": 2, "par": 3, "over": 0, "label": "Par", "won": true } },
+    { "links": 1, "par": 3, "status": "lost", "out": { "links": 1, "par": 3, "over": 0, "label": "X", "won": false } }
+  ],
+  "shareText": [
+    { "puzzle": { "n": 42, "par": 3 }, "state": { "chain": ["a", "b", "c", "d"], "inc": 1, "hints": 0, "status": "won" },
+      "out": "Handoff #42 🏈\n🟩🟩🟩 3 links · Par 3 ⛳\n🟥 1 incompletion\ncev64.github.io/handoff/#42" },
+    { "puzzle": { "n": 7, "par": 3 }, "state": { "chain": ["a", "b", "c", "d", "e"], "inc": 0, "hints": 1, "status": "won" },
+      "out": "Handoff #7 🏈\n🟩🟩🟩🟨 4 links · Par 3 (+1)\n💡 1 hint\ncev64.github.io/handoff/#7" },
+    { "puzzle": { "n": 9, "par": 2 }, "state": { "chain": ["a", "b"], "inc": 2, "hints": 1, "status": "lost" },
+      "out": "Handoff #9 🏈\n🏳️ Turnover on downs · Par 2\n🟥 2 incompletions\n💡 1 hint\ncev64.github.io/handoff/#9" },
+    { "puzzle": { "n": 3, "par": 2 }, "state": { "chain": ["a", "b", "c"], "inc": 0, "hints": 2, "status": "won" },
+      "opts": { "url": "example.com/x/", "title": "Handoff NBA", "emoji": "🏀" },
+      "out": "Handoff NBA #3 🏀\n🟩🟩 2 links · Par 2 ⛳\n💡 2 hints\nexample.com/x/#3" }
+  ],
+  "puzzleNumberForDate": [
+    { "epoch": "2026-10-12", "ymd": "2026-10-12", "n": 1 },
+    { "epoch": "2026-10-12", "ymd": "2026-10-14", "n": 3 },
+    { "epoch": "2026-10-12", "ymd": "2026-10-11", "n": 0 },
+    { "epoch": "2026-10-12", "ymd": "2026-12-01", "n": 51 },
+    { "epoch": "2026-10-12", "ymd": "2027-10-12", "n": 366 }
+  ],
+  "easternDate": [
+    { "utc": "2026-10-16T03:59:59Z", "out": "2026-10-15" },
+    { "utc": "2026-10-16T04:00:00Z", "out": "2026-10-16" },
+    { "utc": "2026-11-01T03:59:59Z", "out": "2026-10-31" },
+    { "utc": "2026-11-01T06:00:00Z", "out": "2026-11-01" },
+    { "utc": "2026-11-02T04:59:59Z", "out": "2026-11-01" },
+    { "utc": "2026-11-02T05:00:00Z", "out": "2026-11-02" },
+    { "utc": "2026-03-08T04:59:59Z", "out": "2026-03-07" },
+    { "utc": "2026-03-08T05:00:00Z", "out": "2026-03-08" },
+    { "utc": "2026-03-09T03:59:59Z", "out": "2026-03-08" },
+    { "utc": "2026-03-09T04:00:00Z", "out": "2026-03-09" }
+  ],
+  "game": [
+    { "name": "win at par after one incompletion", "puzzle": 1,
+      "moves": [["g", "T012"], ["g", "T004"], ["g", "T007"]],
+      "results": ["incompletion", "link", "solved"],
+      "expect": { "chain": ["T001", "T004", "T007", "T003"], "downs": 2, "inc": 1, "hints": 0, "status": "won",
+        "log": [{ "t": "g", "id": "T012", "ok": false }, { "t": "g", "id": "T004", "ok": true }, { "t": "g", "id": "T007", "ok": true }],
+        "score": { "links": 3, "par": 3, "over": 0, "label": "Par", "won": true } } },
+    { "name": "two hints, +1 win", "puzzle": 1,
+      "moves": [["h"], ["g", "T004"], ["h"], ["g", "T006"], ["g", "T007"]],
+      "results": ["hint:DEN:2015", "link", "hint:OAK:2017", "link", "solved"],
+      "expect": { "chain": ["T001", "T004", "T006", "T007", "T003"], "downs": 1, "inc": 0, "hints": 2, "status": "won",
+        "log": [{ "t": "h", "team": "DEN", "season": 2015 }, { "t": "g", "id": "T004", "ok": true }, { "t": "h", "team": "OAK", "season": 2017 },
+                { "t": "g", "id": "T006", "ok": true }, { "t": "g", "id": "T007", "ok": true }],
+        "score": { "links": 4, "par": 3, "over": 1, "label": "+1", "won": true } } },
+    { "name": "loss with last-down hint refused", "puzzle": 1,
+      "moves": [["g", "T012"], ["g", "T017"], ["h"], ["g", "T010"], ["g", "T004"]],
+      "results": ["incompletion", "incompletion", "error:last-down", "lost", "rejected:over"],
+      "expect": { "chain": ["T001"], "downs": 0, "inc": 3, "hints": 0, "status": "lost",
+        "log": [{ "t": "g", "id": "T012", "ok": false }, { "t": "g", "id": "T017", "ok": false }, { "t": "g", "id": "T010", "ok": false }],
+        "score": { "links": 0, "par": 3, "over": 0, "label": "X", "won": false } } },
+    { "name": "rejections are free, undo", "puzzle": 1,
+      "moves": [["g", "nope"], ["g", "T001"], ["g", "T004"], ["g", "T004"], ["g", "T003"], ["u"], ["u"]],
+      "results": ["rejected:unknown", "rejected:start", "link", "rejected:in-chain", "rejected:end", "undo", "undo"],
+      "expect": { "chain": ["T001"], "downs": 3, "inc": 0, "hints": 0, "status": "playing",
+        "log": [{ "t": "g", "id": "T004", "ok": true }, { "t": "u" }],
+        "score": { "links": 0, "par": 3, "over": 0, "label": "Par", "won": false } } },
+    { "name": "repeat hint at same position is free", "puzzle": 2,
+      "moves": [["h"], ["h"], ["g", "T005"], ["h"]],
+      "results": ["hint:IND:2010", "hint:IND:2010", "link", "hint:NYJ:2010"],
+      "expect": { "chain": ["T001", "T005"], "downs": 1, "inc": 0, "hints": 2, "status": "playing",
+        "log": [{ "t": "h", "team": "IND", "season": 2010 }, { "t": "g", "id": "T005", "ok": true }, { "t": "h", "team": "NYJ", "season": 2010 }],
+        "score": { "links": 1, "par": 3, "over": 0, "label": "Par", "won": false } } }
+  ],
+  "stats": [
+    { "name": "streak, over-par, gap, loss, duplicate",
+      "records": [
+        { "n": 10, "won": true, "links": 3, "par": 3, "inc": 0, "hints": 0 },
+        { "n": 11, "won": true, "links": 3, "par": 3, "inc": 1, "hints": 0 },
+        { "n": 11, "won": true, "links": 5, "par": 3, "inc": 0, "hints": 0 },
+        { "n": 12, "won": true, "links": 4, "par": 3, "inc": 0, "hints": 1 },
+        { "n": 14, "won": true, "links": 3, "par": 3, "inc": 0, "hints": 0 },
+        { "n": 15, "won": false, "links": 1, "par": 3, "inc": 3, "hints": 0 },
+        { "n": 16, "won": true, "links": 7, "par": 3, "inc": 0, "hints": 0 }
+      ],
+      "final": { "played": 6, "won": 5, "cur": 1, "max": 3, "parCur": 0, "parMax": 2, "last": 16, "lastWon": 16,
+        "hist": { "0": 3, "1": 1, "2": 0, "3": 1, "X": 1 } },
+      "display": [{ "today": 17, "out": { "cur": 1, "max": 3, "parCur": 0, "parMax": 2 } }, { "today": 18, "out": { "cur": 0, "max": 3, "parCur": 0, "parMax": 2 } }] },
+    { "name": "par streak goes stale",
+      "records": [
+        { "n": 5, "won": true, "links": 2, "par": 2, "inc": 0, "hints": 0 },
+        { "n": 6, "won": true, "links": 2, "par": 2, "inc": 0, "hints": 0 }
+      ],
+      "final": { "played": 2, "won": 2, "cur": 2, "max": 2, "parCur": 2, "parMax": 2, "last": 6, "lastWon": 6, "hist": { "0": 2, "1": 0, "2": 0, "3": 0, "X": 0 } },
+      "display": [{ "today": 7, "out": { "cur": 2, "max": 2, "parCur": 2, "parMax": 2 } }, { "today": 8, "out": { "cur": 0, "max": 2, "parCur": 0, "parMax": 2 } }] }
+  ]
+}
