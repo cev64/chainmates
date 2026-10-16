@@ -43,6 +43,13 @@ for (const sport of sports) {
         assert.equal(p.par, p.best + 1, `${ctx}: par === best + 1`);
         assert.ok(p.best >= 2, `${ctx}: best >= 2`);
       }
+      // Modes: the stored par is the easy par; hard is one more. Both come from parFor.
+      assert.equal(H.parFor(p, 'easy'), best + 1, `${ctx}: easy par`);
+      assert.equal(H.parFor(p, 'hard'), best + 2, `${ctx}: hard par`);
+      if (hasBest) assert.equal(H.parFor(p, 'easy'), p.par, `${ctx}: stored par is the easy par`);
+      assert.equal(H.newGame(p).par, best + 2, `${ctx}: newGame defaults to hard`);
+      assert.equal(H.score({ ...H.newGame(p), chain: p.chain, status: 'won' }).label, 'Eagle', `${ctx}: the stored chain is an Eagle in hard`);
+      assert.equal(H.score({ ...H.newGame(p, { mode: 'easy' }), chain: p.chain, status: 'won' }).label, 'Birdie', `${ctx}: and a Birdie in easy`);
       assert.equal(p.chain.length, best + 1, `${ctx}: chain has best + 1 players`);
       assert.equal(p.chain[0], p.start, `${ctx}: chain starts at start`);
       assert.equal(p.chain[best], p.end, `${ctx}: chain ends at end`);
