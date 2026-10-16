@@ -316,14 +316,16 @@ class Graph:
 PAR_OFFSET = 1
 # Endpoints are fantasy-relevant offensive stars who entered the league after 2010 (the top `pool`
 # of them by fame, picked with a lean toward fame). About one puzzle in eight swaps one end for an
-# elite defender. Friends found the first calendar too hard, so most days have plenty of routes.
+# elite defender. Charlie likes two players in the middle (best = 3), so four days a week aim for
+# that; the rest have one in the middle with plenty of routes. Three in the middle (best = 4)
+# doesn't exist between post-2010 stars: the league is too connected.
 # kind: (best = fewest links, min optimal routes, max optimal routes, pool)
 DIFFICULTY = {
-    "mon": (2, 20, 10**9, 80),     # 2 links, lots of shared teammates, the biggest names
-    "tue": (2, 12, 10**9, 120),
+    "mon": (2, 20, 10**9, 80),     # one in the middle, lots of routes, the biggest names
+    "tue": (3, 1, 10**9, 10**9),   # two in the middle
     "wed": (2, 6, 10**9, 160),
-    "thu": (2, 4, 10**9, 160),
-    "fri": (3, 1, 10**9, 200),     # the one 3-link weekday
+    "thu": (3, 1, 10**9, 10**9),
+    "fri": (3, 1, 10**9, 10**9),
     "sat": (2, 4, 10**9, 10**9),
     "sun": (3, 1, 10**9, 10**9),
 }
@@ -337,11 +339,15 @@ def era(p):  # career midpoint
 
 
 def build_pool(meta, fame, honors, ppr):
-    """Offensive star pool and elite-defender pool, each by fame."""
+    """Offensive star pool, elite-defender pool and the wider far-end pool, each by fame."""
     ranked = sorted(meta, key=lambda p: -fame[p])
     off = [p for p in ranked if is_star(p, meta, honors, ppr)]
     dfn = [p for p in ranked if is_elite_defender(p, meta, honors)]
-    return off, dfn
+    # Two-in-the-middle pairs between stars are rare (their careers overlap too much), so on those
+    # days the far end may come from a wider pool of post-2010 fantasy-relevant players.
+    wide = [p for p in ranked if meta[p]["pos"] in OFFENSE_POS and meta[p]["entry"] >= ENTRY_MIN
+            and meta[p]["games"] >= 24 and (ppr["career"].get(p, 0) >= 600 or ppr["best"].get(p, 0) >= 200)]
+    return off, dfn, wide
 
 
 # Night games that get their own puzzle: the day's featured game is the latest kickoff.
@@ -389,7 +395,7 @@ def game_theme(game):
 
 
 def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, offline, overrides, seed=20021):
-    pool, defs = build_pool(meta, fame, honors, ppr)
+    pool, defs, wide = build_pool(meta, fame, honors, ppr)
     cur = seasons[-1]
     star_set, def_set = set(pool), set(defs)
     # Current rosters: who could be "from tonight's game". Stars and elite defenders first, then
@@ -489,15 +495,19 @@ def generate(G, meta, fame, honors, ppr, epoch, days, existing, today, seasons, 
                 for a_pool in ([game_pool(g, False, True)] if use_def else []) + [game_pool(g, False, False),
                                                                                     game_pool(g, True, False)]:
                     if a_pool:
-                        tries += [(best, lo, hi, a_pool, pool), (best, 1, 10**9, a_pool, pool),
-                                  (2, 1, 10**9, a_pool, pool), (3, 1, 10**9, a_pool, pool)]
+                        tries += [(best, lo, hi, a_pool, pool), (best, 1, 10**9, a_pool, pool)]
+                        if best == 3:
+                            tries += [(3, 1, 10**9, a_pool, wide)]
+                        tries += [(2, 1, 10**9, a_pool, pool), (3, 1, 10**9, a_pool, pool)]
             tries += ([(best, lo, hi, defs, off)] if use_def else []) + [
-                (best, lo, hi, off, off), (best, lo, hi, pool, pool), (best, 1, 10**9, pool, pool),
-                (2, 1, 10**9, pool, pool), (3, 1, 10**9, pool, pool)]
+                (best, lo, hi, off, off), (best, lo, hi, pool, pool), (best, 1, 10**9, pool, pool)]
+            if best == 3:   # a star at one end, a wider fantasy name at the other
+                tries += [(3, 1, 10**9, pool, wide)]
+            tries += [(2, 1, 10**9, pool, pool), (3, 1, 10**9, pool, pool)]
             for t in tries:
                 keep = pick(ctx, *t)
                 if keep:
-                    if t[3] in (defs, off, pool) and g:
+                    if (t[3] is defs or t[3] is off or t[3] is pool) and g:
                         print(f"  {date}: no game-day pair found, plain puzzle")
                         g = game = None
                     break

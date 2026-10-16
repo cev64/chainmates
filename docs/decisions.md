@@ -93,6 +93,13 @@ Apply the same rule as for the NFL: use no scraping of sites whose terms forbid 
 - **Variety.** A player appears as an endpoint at most 6 times a year, and not again within about 3 weeks.
 - **Rebuilt in full.** All puzzles, including the ones already played, were remade with these rules (Charlie). Numbering is unchanged: No. 1 is still Oct 12.
 
+## Two in the middle (Charlie, Oct 16, 2026)
+
+- **Mix:** Charlie likes 2 players in the middle and wants each puzzle to have 1, 2 or 3 in the middle.
+- **Calendar:** Tuesday, Thursday, Friday and Sunday aim for 2 in the middle, about 143 puzzles a year. Monday, Wednesday and Saturday have 1.
+- **No 3-in-the-middle days:** that never happens between post-2010 stars.
+- **Pool for 2-in-the-middle days:** stars come first. When star pairs run out, the far end may be a wider post-2010 fantasy name.
+
 ## iOS architecture: run `handoff-core.js` in JavaScriptCore; keep search and UI native
 
 Pigskin Pantheon runs its whole site engine in a hidden WKWebView, because its engine is large and DOM-adjacent. Chainmates' core is different. It is about 430 lines of pure ES2018 with no DOM, fetch, timers or Intl dependency (Intl has a fallback), and it is exported as a UMD.

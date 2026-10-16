@@ -12,15 +12,19 @@ NFL rosters carry 53 or more players, so the teammate graph is very dense:
 
 So difficulty comes from **`best` (the fewest links possible) and the number of optimal routes**. Pairs with a best of 2 have a median of 15 optimal routes; pairs with a best of 3 have a median of about 500. Par depends on the game mode (`best + 1` in easy, `best + 2` in hard; see "Rules"), so none of the numbers below are par.
 
-| Day | Best (fewest links) | Optimal routes | Endpoint pool |
-|---|---|---|---|
-| Mon | 2 | ≥ 20 | top 80 offensive stars |
-| Tue | 2 | ≥ 12 | top 120 |
-| Wed | 2 | ≥ 6 | top 160 |
-| Thu | 2 | ≥ 4 | top 160 |
-| Fri | 3 (falls back to 2) | any | top 200 |
-| Sat | 2 | ≥ 4 | all |
-| Sun | 3 (falls back to 2) | any | all |
+| Day | Best (fewest links) | In the middle | Optimal routes | Endpoint pool |
+|---|---|---|---|---|
+| Mon | 2 | 1 player | ≥ 20 | top 80 offensive stars |
+| Tue | 3 | 2 players | any | all stars; far end may be a wider fantasy name |
+| Wed | 2 | 1 | ≥ 6 | top 160 |
+| Thu | 3 | 2 | any | as Tue |
+| Fri | 3 | 2 | any | as Tue |
+| Sat | 2 | 1 | ≥ 4 | all stars |
+| Sun | 3 | 2 | any | as Tue |
+
+- **Fallback:** a 2-in-the-middle day falls back to 1 in the middle when no unused pair fits. That happens on about a third of those days.
+- **Three in the middle (best 4)** doesn't exist between post-2010 stars, because the league is too connected.
+- **The wider far-end pool:** a 2-in-the-middle pair needs two careers that barely overlap, so one end may come from post-2010 QB/RB/WR/TE players with a 600-point PPR career or a 200-point season. The other end is always a star.
 
 **Who can be an endpoint** (round 3: friends found the first version too hard):
 - **Entry year:** every endpoint entered the league in 2011 or later. That's the draft year, or the rookie season if undrafted, from nflverse `players`.
