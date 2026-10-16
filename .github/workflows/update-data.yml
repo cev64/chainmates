@@ -1,8 +1,9 @@
 # Rebuilds data/nfl/players.json and extends data/nfl/puzzles.json from
-# nflverse once a week during the season (Tuesday morning, after Monday
-# Night Football), so new team-seasons and trades show up as valid links.
-# Puzzles dated today or earlier (Eastern) are never changed; future ones
-# are re-checked and replaced only if new data changed their par.
+# nflverse every morning during the season, so new team-seasons and trades
+# show up as valid links and the prime-time puzzles follow the schedule:
+# when a game is flexed or moved, or a game-day player leaves that roster,
+# the future puzzle for that night is re-picked. Puzzles dated today or
+# earlier (Eastern) are never changed.
 #
 # Scheduled runs only happen from the repository's default branch, and
 # GitHub may start them a little late when it is busy. "Run workflow" on the
@@ -11,7 +12,7 @@ name: Update data
 
 on:
   schedule:
-    - cron: "0 11 * 9-12,1-2 2"   # Tuesdays 11:00 UTC, September through February
+    - cron: "0 11 * 8-12,1-2 *"   # daily 11:00 UTC (7am Eastern in season), August through February
   workflow_dispatch:
 
 permissions:

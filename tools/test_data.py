@@ -93,6 +93,18 @@ def main():
         pair = frozenset((p["start"], p["end"]))
         check(pair not in pairs, f"{tag}: repeated pair")
         pairs.add(pair)
+    # Prime-time puzzles feature a current player from that night's game; never two players from way back.
+    cur = pj["seasons"][1]
+    last = {pid: max(s for _, s in ix.of[pid]) for pid in ix.of}
+    today = dt.datetime.now(dt.timezone(dt.timedelta(hours=-5))).date().isoformat()
+    for p in pz["puzzles"]:
+        tag = f"#{p['n']}"
+        check(max(last[p["start"]], last[p["end"]]) >= cur - 4, f"{tag}: both endpoints are from way back")
+        g = p.get("game")
+        if g and p["date"] >= today:
+            teams = {g["away"], g["home"]}
+            check(any((t, cur) in ix.of[e] for e in (p["start"], p["end"]) for t in teams),
+                  f"{tag}: no endpoint is on tonight's rosters ({g['away']} at {g['home']})")
     print(f"{len(pz['puzzles'])} puzzles checked")
 
     for f in ("players.json", "puzzles.json"):

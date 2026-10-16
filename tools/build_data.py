@@ -317,7 +317,7 @@ DIFFICULTY = {
     "wed": (3, 1, 10**9, 0.0, 300),
     "thu": (2, 3, 7, 0.0, 200),        # 2 links, only a handful of routes
     "fri": (3, 1, 300, 0.2, 300),      # 3 links, few routes, sometimes a deep cut
-    "sat": (3, 1, 10**9, 0.0, 10**9),  # themed; falls back to 2 links
+    "sat": (3, 1, 10**9, 0.0, 10**9),
     "sun": (3, 1, 10**9, 0.0, 10**9),
 }
 KIND = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -340,36 +340,88 @@ def build_pool(meta, fame, honors, prod):
     return pool, deep
 
 
-def snf_by_weekend(seasons, offline):
-    """Saturday date -> (away, home) for that weekend's Sunday night game."""
-    p = fetch("schedules/games.parquet", offline, max_age_h=20)
+# Night games that get their own puzzle: the day's featured game is the latest kickoff.
+PRIME_DAYS = {"Thursday": ("TNF", "Thursday Night"), "Saturday": ("SAT", "Saturday"),
+              "Sunday": ("SNF", "Sunday Night"), "Monday": ("MNF", "Monday Night")}
+ROSTER_STARS = 10   # per team: the most famous current players a game-day puzzle can start or end on
+
+
+def primetime_games(seasons, offline):
+    """date -> {"slot", "away", "home", "season", "label"} for that day's featured night game.
+
+    Read fresh from the nflverse schedule on every build, so flexed games move with it."""
+    p = fetch("schedules/games.parquet", offline, max_age_h=6)
     if not p:
         return {}
     g = pd.read_parquet(p)
-    g = g[(g.season >= seasons[-1] - 1) & (g.weekday == "Sunday") & (g.gametime >= "20:00")]
+    g = g[g.season >= seasons[-1]]
     out = {}
-    for _, r in g.iterrows():
-        sun = dt.date.fromisoformat(r.gameday)
-        out[(sun - dt.timedelta(days=1)).isoformat()] = (FRANCHISE.get(r.away_team, r.away_team),
-                                                        FRANCHISE.get(r.home_team, r.home_team))
+    for date, day in g.groupby("gameday"):
+        d = dt.date.fromisoformat(date)
+        wd = d.strftime("%A")
+        thanksgiving = wd == "Thursday" and d.month == 11 and 22 <= d.day <= 28
+        christmas = d.month == 12 and d.day == 25
+        if wd not in PRIME_DAYS and not christmas:
+            continue
+        if wd == "Sunday":
+            day = day[day.gametime >= "19:00"]  # Sunday Night, not the afternoon slate
+        if day.empty:
+            continue
+        r = day.sort_values("gametime").iloc[-1]
+        season = int(r.season)
+        slot, label = PRIME_DAYS.get(wd, ("XMAS", "Christmas"))
+        if thanksgiving:
+            label = "Thanksgiving Night"
+        elif christmas:
+            slot, label = "XMAS", "Christmas"
+        away, home = (season_code(FRANCHISE.get(t, t), season) for t in (r.away_team, r.home_team))
+        out[date] = {"slot": slot, "away": away, "home": home, "season": season, "label": label}
     return out
+
+
+def game_theme(game):
+    tt = teams_table()
+    return f"{game['label']}: {tt[game['away']]['name']} at {tt[game['home']]['name']}"
 
 
 def generate(G, meta, fame, honors, prod, epoch, days, existing, today, seasons, offline, overrides, seed=20021):
     pool, deep = build_pool(meta, fame, honors, prod)
-    print(f"star pool {len(pool)}, deep-cut pool {len(deep)}")
-    pidx = [G.idx[p] for p in pool]
-    print(f"BFS from {len(pool)} endpoints ...", flush=True)
-    t = time.time()
-    dist, cnt = G.bfs_many(pidx)
-    print(f"  done in {time.time() - t:.1f}s")
-    col = {p: i for i, p in enumerate(pool)}
-    tt = teams_table()
-    franchises = {p: {tt[t]["franchise"] for t, _ in G.of[G.idx[p]]} for p in pool + deep}
-    snf = snf_by_weekend(seasons, offline)
+    cur = seasons[-1]
+    # Current rosters: who could be "from tonight's game".
+    roster = defaultdict(list)
+    for (t, s), members in G.members.items():
+        if s == cur:
+            roster[t] = sorted((G.ids[i] for i in members
+                                if meta[G.ids[i]]["pos"] in OFFENSE_POS | DEFENSE_POS
+                                and known_since_2002(G.ids[i], meta, prod) or G.ids[i] in pool),
+                               key=lambda p: -fame[p])[:ROSTER_STARS]
+    on_roster = {t: set(v) for t, v in roster.items()}
+    sources = list(dict.fromkeys(pool + [p for v in roster.values() for p in v]))
+    print(f"star pool {len(pool)}, deep-cut pool {len(deep)}, BFS sources {len(sources)}")
+    t0 = time.time()
+    dist, cnt = G.bfs_many([G.idx[p] for p in sources])
+    print(f"  BFS done in {time.time() - t0:.1f}s")
+    col = {p: i for i, p in enumerate(sources)}
+    prime = primetime_games(seasons, offline)
     rng = random.Random(seed)
+    modern = lambda p: meta[p]["last"] >= cur - 4   # played in the last five seasons
 
-    def make(date, a, b, kind, theme):
+    def game_ok(pz, game):
+        if not game:
+            return True
+        teams = (season_code(teams_table()[game["away"]]["franchise"], cur),
+                 season_code(teams_table()[game["home"]]["franchise"], cur))
+        return any(e in on_roster.get(t, ()) for e in (pz["start"], pz["end"]) for t in teams)
+
+    star_set = set(pool)
+
+    def game_pool(game, stars_only):
+        teams = (season_code(teams_table()[game["away"]]["franchise"], cur),
+                 season_code(teams_table()[game["home"]]["franchise"], cur))
+        ps = {p for t in teams for p in roster.get(t, []) if not stars_only or p in star_set}
+        return sorted(ps, key=lambda p: -fame[p])
+
+    def make(date, a, b, kind, theme, game):
         i = col.get(a)
         if i is None:
             d1, c1 = G.bfs_many([G.idx[a]])
@@ -383,8 +435,9 @@ def generate(G, meta, fame, honors, prod, epoch, days, existing, today, seasons,
         for x, y in zip(path, path[1:]):
             t, s = G.shared(x, y)[0]
             links.append([t, int(s)])
-        return {"date": date, "start": a, "end": b, "best": best, "par": best + PAR_OFFSET, "kind": kind, "theme": theme,
-                "chain": [G.ids[x] for x in path], "links": links, "optimal": int(crow[e])}
+        return {"date": date, "start": a, "end": b, "best": best, "par": best + PAR_OFFSET, "kind": kind,
+                "theme": theme, "game": game, "chain": [G.ids[x] for x in path], "links": links,
+                "optimal": int(crow[e])}
 
     used_pairs = set()
     recent = []  # endpoints used in the last ~45 days
@@ -392,86 +445,85 @@ def generate(G, meta, fame, honors, prod, epoch, days, existing, today, seasons,
     start_date = dt.date.fromisoformat(epoch)
     old = {p["date"]: p for p in existing}
     for n in range(1, days + 1):
-        date = (start_date + dt.timedelta(days=n - 1)).isoformat()
-        wd = (start_date + dt.timedelta(days=n - 1)).weekday()
-        kind = KIND[wd]
+        day = start_date + dt.timedelta(days=n - 1)
+        date, kind = day.isoformat(), KIND[day.weekday()]
+        g = prime.get(date)
+        game = {k: g[k] for k in ("slot", "away", "home")} if g else None
         prev = old.get(date)
         if prev and date <= today:
             keep = dict(prev)  # frozen: already playable
             if "best" not in keep:  # format migration only: old files stored par = fewest links
                 keep["best"], keep["par"] = keep["par"], keep["par"] + PAR_OFFSET
+            keep.setdefault("game", None)
         elif date in overrides:
             o = overrides[date]
-            keep = make(date, o["start"], o["end"], kind, o.get("theme"))
+            keep = make(date, o["start"], o["end"], kind, o.get("theme") or (game_theme(g) if g else None), game)
         elif prev and prev["start"] in G.idx and prev["end"] in G.idx:
-            again = make(date, prev["start"], prev["end"], kind, prev.get("theme"))
+            again = make(date, prev["start"], prev["end"], kind, prev.get("theme"), prev.get("game"))
             prev_best = prev.get("best", prev["par"])
-            keep = again if again["best"] == prev_best and again["best"] >= 2 else None
-            if keep is None:
+            keep = again
+            if again["best"] != prev_best or again["best"] < 2:
                 print(f"  {date}: fewest links changed {prev_best} -> {again['best']}, regenerating")
+                keep = None
+            elif (prev.get("game") or None) != game:
+                print(f"  {date}: game changed {prev.get('game')} -> {game} (flex or new schedule), regenerating")
+                keep = None
+            elif not game_ok(prev, game):
+                print(f"  {date}: game-day player no longer on that roster, regenerating")
+                keep = None
         else:
             keep = None
         if keep is None:
-            theme, side_a, side_b = None, None, None
-            if kind in ("sat", "sun"):
-                sat = date if kind == "sat" else (dt.date.fromisoformat(date) - dt.timedelta(days=1)).isoformat()
-                if sat in snf:
-                    away, home = snf[sat]
-                    an, hn = TEAMS[away][1], TEAMS[home][1]
-                    if kind == "sat":
-                        theme, side_a, side_b = f"{hn} weekend", home, home
-                    else:
-                        theme, side_a, side_b = f"Sunday Night: {an} at {hn}", away, home
-                else:
-                    fr = sorted(TEAMS)[(n // 7) % 32]
-                    theme, side_a, side_b = f"{TEAMS[fr][1]} weekend", fr, fr
-            par, lo, hi, deep_p, size = DIFFICULTY[kind]  # `par` here is the fewest-links target
-            ctx = (G, pool[:size], deep, col, dist, cnt, meta, fame, franchises, used_pairs, recent, rng)
-            tries = [(par, lo, hi, rng.random() < deep_p, side_a, side_b)]
-            if theme:
-                tries += [(2, 1, 10**9, False, side_a, side_b)]
-            tries += [(par, 1, 10**9, False, None, None), (2, 1, 10**9, False, None, None)]
-            for i, t in enumerate(tries):
+            best, lo, hi, deep_p, size = DIFFICULTY[kind]
+            ctx = (G, pool[:size], deep, col, dist, cnt, meta, fame, used_pairs, recent, rng, modern)
+            both_modern = rng.random() < 0.4
+            tries = []
+            if g:  # tonight's stars first, then anyone notable on those rosters
+                for gp in (game_pool(g, True), game_pool(g, False)):
+                    if gp:
+                        tries += [(best, lo, hi, False, gp, both_modern), (best, 1, 10**9, False, gp, False),
+                                  (2, 1, 10**9, False, gp, False), (3, 1, 10**9, False, gp, False)]
+            tries += [(best, lo, hi, rng.random() < deep_p, None, both_modern), (best, lo, hi, False, None, False),
+                      (best, 1, 10**9, False, None, False), (2, 1, 10**9, False, None, False)]
+            for t in tries:
                 keep = pick(ctx, *t)
                 if keep:
-                    if t[4] is None:
-                        theme = None
+                    if t[4] is None and g:
+                        print(f"  {date}: no game-day pair found, plain puzzle")
+                        g = game = None
                     break
             if keep is None:
                 sys.exit(f"no puzzle found for {date}")
             a, b = keep
-            keep = make(date, a, b, kind, theme)
+            keep = make(date, a, b, kind, game_theme(g) if g else None, game)
         keep["n"] = n
         used_pairs.add(frozenset((keep["start"], keep["end"])))
         recent = (recent + [keep["start"], keep["end"]])[-90:]
-        out.append({k: keep[k] for k in ("n", "date", "start", "end", "best", "par", "kind", "theme", "chain", "links", "optimal")})
+        out.append({k: keep.get(k) for k in ("n", "date", "start", "end", "best", "par", "kind", "theme", "game",
+                                             "chain", "links", "optimal")})
     return out
 
 
-def pick(ctx, want, lo, hi, use_deep, side_a, side_b):
-    G, pool, deep, col, dist, cnt, meta, fame, franchises, used, recent, rng = ctx
+def pick(ctx, want, lo, hi, use_deep, a_pool, both_modern):
+    """One endpoint from a_pool (tonight's rosters) or the star pool, the other from the star or deep pool.
+
+    Era mix for a younger audience: at least one endpoint played in the last five seasons, sometimes
+    both; never two players from way back. Which end is which is a coin flip."""
+    G, pool, deep, col, dist, cnt, meta, fame, used, recent, rng, modern = ctx
     recent = set(recent)
-    ok_a = lambda p: p not in recent and (side_a is None or side_a in franchises[p])
-    ok_b = lambda p: p not in recent and (side_b is None or side_b in franchises[p])
     # Weighted shuffle (Efraimidis-Spirakis) leaning toward famous players.
-    cands_a = sorted((p for p in pool if ok_a(p)), key=lambda p: -rng.random() ** (1 / (fame[p] / 999) ** 2))
+    cands_a = sorted((p for p in (a_pool or pool) if p not in recent),
+                     key=lambda p: -rng.random() ** (1 / max(fame[p] / 999, 0.05) ** 2))
     b_pool = deep if use_deep else pool
     for a in cands_a:
         drow, crow = dist[col[a]], cnt[col[a]]
-        bs = [p for p in b_pool if p != a and ok_b(p) and drow[G.idx[p]] == want
-              and lo <= crow[G.idx[p]] <= hi and frozenset((a, p)) not in used]
-        if side_a and side_a == side_b:  # same-franchise theme: don't let both share an era
-            bs = [p for p in bs if abs(era(meta[p]) - era(meta[a])) >= 4]
+        bs = [p for p in b_pool if p != a and p not in recent and drow[G.idx[p]] == want
+              and lo <= crow[G.idx[p]] <= hi and frozenset((a, p)) not in used
+              and (modern(a) and modern(p) if both_modern else modern(a) or modern(p))]
         if not bs:
             continue
-        # Mix it up: prefer a different position and a different era.
-        def score(p):
-            s = rng.random()
-            if meta[p]["pos"] != meta[a]["pos"]:
-                s += 0.6
-            s += min(abs(era(meta[p]) - era(meta[a])), 12) / 12
-            s += 0.8 * fame[p] / 999
-            return s
+        def score(p):  # prefer a different position, and fame
+            return rng.random() + (0.6 if meta[p]["pos"] != meta[a]["pos"] else 0) + 0.8 * fame[p] / 999
         b = max(bs, key=score)
         return (a, b) if rng.random() < 0.5 else (b, a)
     return None
