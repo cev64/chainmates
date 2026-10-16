@@ -5,7 +5,7 @@ A daily teammate-chain trivia game: connect two players through teammates in as 
 Read these before changing anything:
 - `docs/spec.md`: the rules, data formats and core API. It is the contract.
 - `docs/decisions.md`
-- `docs/design-notes.md`: the look, matched to Pigskin Pantheon (`cev64/leaguehistoryapp`).
+- `docs/design-notes.md`: the quality bar, taken from Pigskin Pantheon (`cev64/leaguehistoryapp`). Chainmates has **its own identity** built around a chain/link motif. Don't copy Pigskin Pantheon's look.
 
 ## Commands
 
@@ -17,6 +17,8 @@ Read these before changing anything:
 - Build the deployable site: `tools/build_site.sh`, which writes `_site/`.
 
 ## Conventions
+
+- **Motion is a feature.** Every state change animates: links spring in, connectors draw, undo retracts, sheets drag. Animate with transform/opacity only, keep it at 60fps, and give everything a `prefers-reduced-motion` fallback.
 
 - **All game rules live in `core/handoff-core.js`.** Clients never re-implement validation, scoring, share text, streaks or date mapping. Change the core, then update `core/test/vectors.json` and the tests.
 - **Puzzles dated today or earlier (America/New_York) are frozen.** `build_data.py` never changes them; keep it that way.
