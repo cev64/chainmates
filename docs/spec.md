@@ -8,25 +8,30 @@ This is the contract between `tools/build_data.py`, which produces the data, `co
 
 NFL rosters carry 53 or more players, so the teammate graph is very dense:
 - Among the ~400 most famous players, every pair is 1–3 links apart.
-- A par of 4 essentially never happens. It shows up in 4 pairs out of 1.2M, even with the top 3,000 players.
+- A best of 4 essentially never happens. It shows up in 4 pairs out of 1.2M, even with the top 3,000 players.
 
-So difficulty comes from **par and the number of optimal routes**. Par-2 pairs have a median of 15 optimal routes; par-3 pairs have a median of about 500.
+So difficulty comes from **`best` (the fewest links possible) and the number of optimal routes**. Pairs with a best of 2 have a median of 15 optimal routes; pairs with a best of 3 have a median of about 500. The displayed par is always `best + 1` (see "Rules"), so none of the numbers below are par.
 
-| Day | Par | Optimal routes | Endpoint pool | Notes |
+| Day | Best (fewest links) | Optimal routes | Endpoint pool | Notes |
 |---|---|---|---|---|
-| Mon | 2 | ≥ 20 | top 200 | easy |
-| Tue | 2 | 8–19 | top 300 | |
-| Wed | 3 | any | top 400 | |
-| Thu | 2 | 3–7 | top 300 | you need to know one of the few links |
-| Fri | 3 | ≤ 300 | top 400 | about 30% of Fridays use a "deep cut" endpoint (fame rank 400–1200) |
-| Sat | 3 (falls back to 2) | any | top 400 | themed: "{home team of Sunday Night Football} weekend". Both endpoints played for that franchise, at least 4 seasons apart. |
-| Sun | 3 (falls back to 2) | any | top 400 | themed: "Sunday Night: {away} at {home}". One endpoint from each team. |
+| Mon | 2 | ≥ 20 | top 120 stars | easy |
+| Tue | 2 | 8–19 | top 200 stars | |
+| Wed | 3 | any | top 300 stars | |
+| Thu | 2 | 3–7 | top 200 stars | you need to know one of the few links |
+| Fri | 3 | ≤ 300 | top 300 stars | about 20% of Fridays use a "deep cut" endpoint: a one-time Pro Bowler or a long, productive career |
+| Sat | 3 (falls back to 2) | any | all stars | themed: "{home team of Sunday Night Football} weekend". Both endpoints played for that franchise, at least 4 seasons apart. |
+| Sun | 3 (falls back to 2) | any | all stars | themed: "Sunday Night: {away} at {home}". One endpoint from each team. |
 
 Within each pool, endpoints are picked with a lean toward fame (a weighted shuffle), and the second endpoint prefers a different position and era.
 
+**What counts as a star** (endpoints are stars only, so players should be recognisable):
+- 2 or more Pro Bowls, an All-Pro selection, the Hall of Fame, or 1 Pro Bowl for players who debuted in 2020 or later. Undrafted players qualify on production instead.
+- At least 48 games since 2002, and real offensive or defensive production. Kick returners and pre-2002 careers are out.
+- Honors come from nflverse `draft_picks`. Fame adds Pro Bowls, All-Pros and the Hall of Fame on top of the stats volume.
+
 - Outside the season, weekends rotate franchise themes.
 - `tools/puzzle_overrides.json` pins hand-picked pairs to dates, for holidays and big games.
-- The endpoint pool is the top 400 by fame, about 65% QB/RB/WR/TE and 35% defenders. Kickers, punters and linemen are never endpoints, though they are valid links.
+- Kickers, punters and linemen are never endpoints, though they are valid links.
 
 ## Stints (who counts as a teammate)
 
@@ -44,7 +49,8 @@ Practice squad (`DEV`), reserve lists (`RES`) and cuts are excluded. A player tr
   - The player adds the middle players one at a time.
   - Each added player must be a teammate of the **current last player** of the chain.
   - The puzzle is **solved** as soon as the last added player is a teammate of `end`; `end` is then appended automatically.
-- **Par** = the shortest possible number of links (the graph distance). Puzzles always have par ≥ 2.
+- **Best** = the shortest possible number of links (the graph distance). Puzzles always have best ≥ 2.
+- **Par** = `best + 1`. Finding an optimal chain therefore beats par, so the game has a **Birdie** (−1). One extra link is **Par**.
 - **Downs:** 3. An invalid guess, meaning the guessed player is not a teammate of the last player, is an *incompletion* and costs one down. At 0 downs the result is *turnover on downs* and the puzzle is lost.
 - These guesses are rejected with **no** down cost:
   - unknown players
@@ -53,14 +59,15 @@ Practice squad (`DEV`), reserve lists (`RES`) and cuts are excluded. A player tr
   - the end player, when the last player is not their teammate. A valid guess of the end player is never possible, because the puzzle auto-solves first.
 - **Undo** removes the last added middle player, for free. You can't undo after the game is over.
 - **Hint** costs a down. It isn't allowed when only 1 down is left, because it would end the game.
-  - It reveals the team-season of the **next link on some optimal path from the current last player to `end`**, for example `{team:"DEN", season:2012}`.
-  - The hint is chosen deterministically: compute a shortest path from the last player to end, and reveal its first link.
+  - It reveals the team-season of the **next link on some optimal path from the current last player to `end`**, plus the **position of the player you would pick there**, for example `{team:"DEN", season:2012, pos:"WR"}`. It never reveals a name.
+  - The hint is chosen deterministically: compute a shortest path from the last player to end (`shortestPath` prefers the most famous candidate at each step), and reveal its first link and the position of the next player on it.
   - Calling hint again at the same chain position returns the same hint at no extra cost.
   - Hints are counted on the result.
-- **Score** = links − par.
-  - Labels: 0 → "Par", n → "+n".
+- **Score** = `over` = `max(best, links) − par`, golf style. It can be negative, but never below `best − par` (−1 in real data).
+  - Labels: −1 → "Birdie", −2 → "Eagle", −3 → "Albatross", 0 → "Par", n → "+n". Any other negative number is shown as is.
   - A lost game has no score and is labelled "X".
-  - Data refreshes can shorten a path, so a negative score is clamped to 0 in the label.
+  - Data refreshes can shorten a path, so fewer links than `best` count as `best`: it is still a Birdie, never better.
+  - Older puzzle data has no `best`. It then falls back to `best = par`, so those puzzles can't be beaten.
 
 ## Team codes and display
 
@@ -131,7 +138,8 @@ Washington's nickname by season:
       "date": "2026-10-12",
       "start": "00-0010346",
       "end": "00-0036900",
-      "par": 3,
+      "best": 3,
+      "par": 4,
       "kind": "mon",
       "theme": null,
       "chain": ["00-0010346", "00-00xxxxx", "00-00yyyyy", "00-0036900"],
@@ -145,7 +153,8 @@ Washington's nickname by season:
 - Puzzle `n` falls on date `epoch + (n-1)` days, so `puzzles[i].n === i + 1`.
 - `kind` is the weekday code: `mon`, `tue`, `wed`, `thu`, `fri`, `sat` or `sun`.
 - `theme` is a short string on themed days, for example `"Packers weekend"`, and `null` otherwise.
-- `chain` holds `par + 1` player ids. `links[i]` is the team-season joining `chain[i]` and `chain[i+1]`.
+- `best` is the fewest links possible (the graph distance from `start` to `end`), always ≥ 2. `par` is `best + 1`.
+- `chain` holds an optimal chain of `best + 1` player ids. `links[i]` is the team-season joining `chain[i]` and `chain[i+1]`, so `links` has `best` entries.
 - `optimal` is the number of distinct shortest **player sequences** from start to end.
 
 ## Puzzle numbering and time zone
@@ -157,18 +166,20 @@ Washington's nickname by season:
 
 ```
 Chainmates #42 🏈
-🟩🟩🟩 3 links · Par 3 ⛳
+🟩🟩🟩🟩 4 links · Par 4 ⛳
 🟥 1 incompletion
 cev64.github.io/handoff/#42
 ```
 
-- **Link squares:** one square per link. The first `par` squares are 🟩 and any extra links are 🟨.
-- **The second line's ending:**
-  - At par it ends with ` · Par 3 ⛳`.
-  - Over par it reads `🟩🟩🟩🟨 4 links · Par 3 (+1)`.
-- **Incompletions:** one line `🟥 N incompletion(s)`, omitted when N = 0.
+- **Link squares:** one square per link. The first `par` squares are 🟩 and any extra links are 🟨. A Birdie shows fewer squares than par.
+- **The second line's ending** (`link` is singular for exactly one link):
+  - At par it ends with ` · Par 4 ⛳`.
+  - Over par it reads `🟩🟩🟩🟩🟨 5 links · Par 4 (+1)`.
+  - Under par it names the score: `🟩🟩🟩 3 links · Par 4 · Birdie 🐦` (an Eagle reads `· Eagle 🐦`).
+- **Incompletions:** one line `🟥 N incompletion(s)`, omitted when N = 0. The word is `opts.miss` (default `"incompletion"`), pluralised with an "s".
 - **Hints:** `💡 N hint(s)`, omitted when 0.
-- **Lost:** the second line is `🏳️ Turnover on downs · Par 3`, followed by the incompletion and hint lines.
+- **Lost:** the second line is `🏳️ Turnover on downs · Par 4`, followed by the incompletion and hint lines. The phrase is `opts.lost` (default `"Turnover on downs"`).
+- **Sport words:** `miss` and `lost` are the only sport-specific words in the share text. Other sports pass their own, such as `{miss: "turnover", lost: "Out of lives"}`.
 - **URL:** the last line is `{url}#{n}`. The base URL is a config option, defaulting to `cev64.github.io/handoff/`.
 - **Never** include player or team names in the share text.
 
@@ -185,15 +196,15 @@ cev64.github.io/handoff/#42
   "parMax": 0,
   "last": 0,
   "lastWon": 0,
-  "hist": { "0": 0, "1": 0, "2": 0, "3": 0, "X": 0 },
+  "hist": { "-1": 0, "0": 0, "1": 0, "2": 0, "3": 0, "X": 0 },
   "results": {}
 }
 ```
 
-- `hist` counts strokes over par: `"0"` is par, `"1"` is +1, `"2"` is +2, `"3"` is +3 or more, and `"X"` is lost.
-- `results` is keyed by puzzle number: `{ "42": { "links": 3, "par": 3, "inc": 1, "hints": 0, "won": true } }`.
+- `hist` counts strokes against par: `"-1"` is a Birdie or better, `"0"` is par, `"1"` is +1, `"2"` is +2, `"3"` is +3 or more, and `"X"` is lost. The bucket is `max(-1, min(3, over))`. Stats saved before the `"-1"` bucket existed gain it on the next result.
+- `results` is keyed by puzzle number: `{ "42": { "links": 3, "par": 4, "inc": 1, "hints": 0, "won": true } }`.
 - **Win streak (`cur`):** it increments when you win puzzle `n` and the last *won* daily was `n-1`, or when it is your first win. Otherwise it resets to 1 on a win, and to 0 on a loss.
-- **Par streak (`parCur`):** consecutive daily puzzles finished exactly at par, under the same consecutive-number rule. A loss, or a win over par, resets it to 0.
+- **Par streak (`parCur`):** consecutive daily puzzles finished at **par or better** (`over <= 0`, so a Birdie keeps it going), under the same consecutive-number rule. A loss, or a win over par, resets it to 0.
 - Recording the same puzzle twice is a no-op.
 - When displaying, `cur` (and `parCur`) shows as 0 if the last win (or last par result) is older than yesterday's puzzle.
 
@@ -225,17 +236,19 @@ H.easternDate(date = new Date()) // "YYYY-MM-DD" in America/New_York
 H.puzzleNumberForDate(puzzlesJson, ymd) // integer (may be <1 or > length)
 H.puzzleForDate(puzzlesJson, ymd)       // puzzle | null
 H.puzzleByNumber(puzzlesJson, n)        // puzzle | null
-H.newGame(puzzle, {downs=3})  // state: {n, start, end, par, chain:[start], downs, inc, hints, hintAt:{}, status:"playing"|"won"|"lost", log:[]}
+H.newGame(puzzle, {downs=3})  // state: {n, start, end, par, best, chain:[start], downs, inc, hints, hintAt:{}, status:"playing"|"won"|"lost", log:[]}
 H.guess(index, state, id)     // -> {state, result} (state is a NEW object; inputs never mutated)
    // result.kind: "link" {links:[{team,season}]} | "solved" {links, final:[{team,season}]} |
    //              "incompletion" {downsLeft} | "lost" | "rejected" {reason:"unknown"|"in-chain"|"start"|"end"|"over"}
 H.undo(state)                 // -> state (no-op if chain has only start or game over)
-H.hint(index, state)          // -> {state, hint:{team,season}} | {state, error:"last-down"|"over"|"none"}
-H.score(state)                // {links, par, over, label:"Par"|"+1"|"X", won}
-H.shareText(puzzle, state, {url="cev64.github.io/handoff/", title="Chainmates", emoji="🏈"}) // string per spec
+H.hint(index, state)          // -> {state, hint:{team,season,pos}} | {state, error:"last-down"|"over"|"none"}
+H.score(state)                // {links, par, best, over, label:"Birdie"|"Eagle"|"Par"|"+1"|"X"|..., won}
+H.shareText(puzzle, state, {url="cev64.github.io/handoff/", title="Chainmates", emoji="🏈", miss="incompletion", lost="Turnover on downs"}) // string per spec
 H.newStats() / H.recordResult(stats, puzzleN, state) -> stats / H.displayStreaks(stats, todayN) -> {cur, max, parCur, parMax}
 ```
 
+- **`newGame`** copies `best` from the puzzle. A puzzle without `best` (older data) gets `best = par`.
+- **`hint`** returns `pos`, the position of the next player on the shortest path (the most famous candidate at each step). Hints cached in `state.hintAt` hold the same three fields; one saved by an older version has no `pos`.
 - **`guess` with `link`:** `links` lists the team-seasons the two players shared (from `sharedTeams`), so the UI can show "Teammates on the 2015 Broncos" and "+2 more".
 - **`guess` when solved:** the final step is the last guessed player to `end`, so `final` is `sharedTeams(last, end)`.
 - `state.log` is the move list, for replay or analytics. Entries look like `{t:"g", id, ok}`, `{t:"u"}` or `{t:"h", team, season}`.

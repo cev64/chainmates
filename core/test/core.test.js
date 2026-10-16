@@ -619,7 +619,6 @@ test('stats: hist buckets -1, 0, +1, +2, +3 and beyond', () => {
   assert.deepEqual(rec(7), { '-1': 0, 0: 0, 1: 0, 2: 0, 3: 1, X: 0 });
   assert.deepEqual(rec(12), { '-1': 0, 0: 0, 1: 0, 2: 0, 3: 1, X: 0 }); // +3 or more bucket together
   // eagle and beyond collapse into the -1 bucket
-  assert.equal(rec(3, 5).hist === undefined, false);
   assert.deepEqual(rec(3, 5), { '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
   assert.deepEqual(rec(3, 7), { '-1': 1, 0: 0, 1: 0, 2: 0, 3: 0, X: 0 });
   // shorter than best after a data refresh still lands in -1 (over = best - par)
