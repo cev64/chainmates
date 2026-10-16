@@ -695,7 +695,7 @@
     const st = game.state;
     if (want === modeOf(st) || st.status !== 'playing') return;
     if (want === 'easy' && hasMoved(st)) {
-      $('#modeDesc').innerHTML = 'You\'ll see every player\'s teams and years. Par drops from <b>' + st.par + '</b> to <b>' + H.parFor(game.puzzle, 'easy') + '</b>.';
+      $('#modeDesc').innerHTML = 'You\'ll see every player\'s teams and years. Par drops from <b>' + st.par + '</b> to <b>' + H.parFor(game.puzzle, 'easy') + '</b>. This puzzle only: your next one starts on ' + MODE_NAME[prefMode()].toLowerCase() + '.';
       returnFocus.set(dlgMode, from);
       dlgMode.showModal();
       return;
@@ -723,7 +723,8 @@
   /** Re-render everything that shows teams, then let the career lines slide in (easy) or out (hard). */
   function applyMode(want) {
     // Before the first move a switch is just a fresh game in the other mode (setMode logs hard -> easy, which would lock easy in).
-    const r = hasMoved(game.state) ? H.setMode(game.state, want) : { ok: true, state: H.newGame(game.puzzle, { mode: want }) };
+    const moved = hasMoved(game.state);
+    const r = moved ? H.setMode(game.state, want) : { ok: true, state: H.newGame(game.puzzle, { mode: want }) };
     if (!r.ok) {
       if (r.reason === 'started') {
         setPrefMode(want);
@@ -733,7 +734,9 @@
       }
       return;
     }
-    setPrefMode(want);
+    // Only a choice made before the first move changes the default. Dropping to easy mid-game is
+    // for this puzzle only, so the next one still starts on hard (Charlie, Oct 17).
+    if (!moved) setPrefMode(want);
     const view = $('#viewGame');
     const rerender = () => {
       game.state = r.state; save();
