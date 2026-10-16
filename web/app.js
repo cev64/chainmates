@@ -372,41 +372,57 @@
   const lastId = () => game.state.chain[game.state.chain.length - 1];
 
   /* ------------------------------------------------------------ hero */
+  const clubName = (team) => { const t = TEAMS[team] || {}; return (t.city ? t.city + ' ' : '') + (t.name || team); };
   function heroCard(p, label, cls) {
     return '<div class="pcard ' + cls + '">' +
       '<span class="pcard-label">' + esc(label) + '</span>' +
       '<span class="pcard-name">' + esc(p.name) + '</span>' +
-      '<span class="chips">' + chipsFor(p, 4) + '</span>' +
-      '<span class="pcard-meta">' + esc(metaLine(p)) + '</span></div>';
+      '<span class="pcard-meta">' + esc(metaLine(p)) + '</span>' + careerHTML(p) + '</div>';
   }
-  /** "Par 3" over "birdie in 2": the badge itself says par can be beaten (old data, where par was the fewest, shows par alone). */
-  function parBadge(pz) {
-    const best = bestOf(pz), under = best < pz.par;
-    return '<span class="par-badge' + (under ? ' has-best' : '') + '" role="img" aria-label="Par ' + pz.par + ' links' + (under ? '. Can be done in ' + best + ', a birdie' : '') + '">' +
-      '<span class="pb-par">Par ' + pz.par + '</span>' + (under ? '<span class="pb-best">birdie in ' + best + '</span>' : '') + '</span>';
+  /** A game-night theme's matchup: two ClubChips with "at" between them. Shown in both modes: it is the theme, not a hint. */
+  function gameHTML(g) {
+    if (!g || !g.away || !g.home) return '';
+    return '<span class="theme-game" role="img" aria-label="' + esc(clubName(g.away) + ' at ' + clubName(g.home)) + '">' +
+      chip(g.away) + '<span class="at" aria-hidden="true">at</span>' + chip(g.home) + '</span>';
   }
-  function renderHero() {
-    const pz = game.puzzle, practice = game.mode === 'practice';
-    const a = H.player(index, pz.start), b = H.player(index, pz.end), best = bestOf(pz);
+  /** Just "Par N": the par of the mode this game is played in (state.par). The ladder below par lives in How to play. */
+  function parBadgeHTML(st) {
+    return '<span class="par-badge" id="parBadge" role="img" aria-label="Par ' + st.par + ' links"><span class="pb-par">Par <span class="pb-n">' + st.par + '</span></span></span>';
+  }
+  /** Hard/Easy segmented control while playing; a plain "Played on hard" once the game is over. */
+  function modeCtlHTML(st) {
+    const m = modeOf(st);
+    if (st.status !== 'playing') return '<span class="mode-played">Played on <b>' + esc(MODE_NAME[m].toLowerCase()) + '</b></span>';
+    return '<span class="mode-note" id="modeNote">' + modeNote(m) + '</span>' +
+      '<span class="modes" id="modeCtl" role="group" aria-label="Difficulty" data-on="' + m + '">' +
+        '<span class="modes-thumb" aria-hidden="true"></span>' +
+        ['hard', 'easy'].map((k) => '<button type="button" data-mode="' + k + '" aria-pressed="' + (k === m) + '">' + MODE_NAME[k] + '</button>').join('') +
+      '</span>';
+  }
+  const modeNote = (m) => (m === 'hard' ? 'No teams shown' : 'Every team shown');
+  function renderHero(opts) {
+    opts = opts || {};
+    const pz = game.puzzle, st = game.state, practice = game.mode === 'practice';
+    const a = H.player(index, pz.start), b = H.player(index, pz.end);
     const hero = $('#hero');
+    const cards = heroCard(a, 'Start', 'pcard-start') + '<div class="gap-link" aria-hidden="true"><span class="knot">' + LINK_SVG + '</span></div>' + heroCard(b, 'Finish', 'pcard-end');
+    if (opts.cardsOnly) {
+      $('#matchup').innerHTML = cards;
+      $('#heroFoot').innerHTML = parBadgeHTML(st) + modeCtlHTML(st);
+      return;
+    }
+    const theme = pz.theme || pz.game ? '<span class="hero-theme">' + (pz.theme ? '<span class="theme-text">' + esc(pz.theme) + '</span>' : '') + gameHTML(pz.game) + '</span>' : '';
     $('#heroInner').innerHTML =
       '<div class="hero-kicker">' +
-        '<span><b>No. ' + pz.n + '</b> · ' + esc(fmtDateLong(pz.date)) + (pz.theme ? ' · ' + esc(pz.theme) : '') + '</span>' +
+        '<span><b>No. ' + pz.n + '</b> · ' + esc(fmtDateLong(pz.date)) + '</span>' +
         '<span class="hero-status' + (practice ? ' practice' : '') + '">' + (practice ? 'Practice replay' : 'Daily puzzle') + '</span>' +
+        theme +
       '</div>' +
-      '<div class="matchup">' +
-        heroCard(a, 'Start', 'pcard-start') +
-        '<div class="gap-link" aria-hidden="true"><span class="knot">' + LINK_SVG + '</span></div>' +
-        heroCard(b, 'Finish', 'pcard-end') +
-      '</div>' +
-      '<div class="hero-foot">' + parBadge(pz) +
-        '<h1 class="hero-title" id="heroTitle">' + esc(S.tagline || 'Connect two players through teammates.') + ' ' +
-          (practice ? 'This replay doesn\'t count toward your stats.'
-            : best < pz.par ? 'The shortest chain takes <b>' + plural(best, 'link') + '</b>. Par gives you one to spare.'
-            : 'Fewest links possible: <b>' + pz.par + '</b>.') + '</h1>' +
-      '</div>';
+      '<h1 class="sr-only" id="heroTitle">Puzzle No. ' + pz.n + ': connect ' + esc(a.name) + ' and ' + esc(b.name) + ' through teammates.</h1>' +
+      '<div class="matchup" id="matchup">' + cards + '</div>' +
+      '<div class="hero-foot" id="heroFoot">' + parBadgeHTML(st) + modeCtlHTML(st) + '</div>';
     hero.classList.remove('intro'); reflow(hero); hero.classList.add('intro');
-    setKicker('<span class="k-word">' + (practice ? 'Practice, ' : '') + '</span><b>No. ' + pz.n + '</b>');
+    setKicker('<span class="k-word">' + (practice ? 'Practice, ' : '') + '</span><b>No. ' + pz.n + '</b>' + (pz.theme ? '<span class="k-theme"> · ' + esc(pz.theme) + '</span>' : ''));
   }
 
   /* ------------------------------------------------------------ chain */
