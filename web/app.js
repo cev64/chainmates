@@ -66,7 +66,7 @@
   const X_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   const BULB_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"/></svg>';
   const CLOSE_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-  const ART_SVG = '<svg class="status-art" viewBox="0 0 80 40" width="80" height="40" aria-hidden="true" fill="none" stroke-width="5"><rect class="lk-a" x="6" y="8" width="38" height="24" rx="12" stroke="var(--accent)"/><rect class="lk-b" x="36" y="8" width="38" height="24" rx="12" stroke="var(--gold)"/></svg>';
+  const ART_SVG = '<svg class="status-art" viewBox="0 0 80 40" width="64" height="32" aria-hidden="true" fill="none" stroke-width="4.5"><rect x="6" y="8" width="38" height="24" rx="12" stroke="var(--ink)"/><rect x="36" y="8" width="38" height="24" rx="12" stroke="var(--accent)"/></svg>';
 
   /* ------------------------------------------------------------ theme */
   const btnTheme = $('#btnTheme');
@@ -149,6 +149,12 @@
     const dt = new Date(Date.UTC(y, m - 1, d));
     return DAYS[dt.getUTCDay()] + ', ' + MONTHS[m - 1] + ' ' + d + (long ? ', ' + y : '');
   }
+  const FULL_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function fmtDateLong(ymd) {
+    const [y, m, d] = String(ymd).split('-').map(Number);
+    return FULL_DAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] + ', ' + FULL_MONTHS[m - 1] + ' ' + d;
+  }
   const years = (p) => (p.first == null ? '' : p.first === p.last ? String(p.first) : p.first + '–' + p.last);
   const metaLine = (p) => [p.pos, years(p)].filter(Boolean).join(' · ');
   const seasonsRange = () => (playersJson && playersJson.seasons ? playersJson.seasons.join('–') : '');
@@ -199,7 +205,7 @@
     v.classList.remove('view-in'); reflow(v); v.classList.add('view-in');
   }
   function setKicker(html) { $('#brandKicker').innerHTML = html; }
-  const todayKicker = () => '<span class="k-word">Puzzle </span><b>#' + todayN + '</b>';
+  const todayKicker = () => '<b>No. ' + todayN + '</b>';
 
   const skeletonHTML = $('#statusBody').innerHTML;
   function showStatus(kind, arg) {
@@ -212,15 +218,15 @@
       let inner = '';
       if (kind === 'error') {
         inner = '<span class="status-big">Chain snapped</span><strong>We couldn\'t load the puzzle.</strong><span>Check your connection and try again.</span>' +
-          (arg && arg.message ? '<code>' + esc(arg.message) + '</code>' : '') + '<button type="button" class="btn btn-accent" id="btnRetry">Try again</button>';
+          (arg && arg.message ? '<code>' + esc(arg.message) + '</code>' : '') + '<button type="button" class="btn btn-ink" id="btnRetry">Try again</button>';
       } else if (kind === 'future') {
         const p = H.puzzleByNumber(puzzlesJson, arg);
         inner = '<span class="status-big">Not available yet</span><strong>Puzzle #' + esc(arg) + ' is still locked.</strong>' +
-          '<span>' + (p ? 'It unlocks ' + esc(fmtDate(p.date)) + ' at midnight Eastern.' : 'Check back later.') + '</span><a class="btn btn-accent" href="#">Play today\'s puzzle</a>';
+          '<span>' + (p ? 'It unlocks ' + esc(fmtDate(p.date)) + ' at midnight Eastern.' : 'Check back later.') + '</span><a class="btn btn-ink" href="#">Play today\'s puzzle</a>';
       } else if (kind === 'notfound') {
-        inner = '<span class="status-big">No such puzzle</span><strong>There is no puzzle #' + esc(arg) + '.</strong><span>Pick one from the archive instead.</span><a class="btn btn-accent" href="#archive">Open the archive</a>';
+        inner = '<span class="status-big">No such puzzle</span><strong>There is no puzzle #' + esc(arg) + '.</strong><span>Pick one from the archive instead.</span><a class="btn btn-ink" href="#archive">Open the archive</a>';
       } else if (kind === 'nopuzzle') {
-        inner = '<span class="status-big">Off day</span><strong>There\'s no puzzle for today.</strong><span>New puzzles are on the way. Older ones are in the archive.</span><a class="btn btn-accent" href="#archive">Open the archive</a>';
+        inner = '<span class="status-big">Off day</span><strong>There\'s no puzzle for today.</strong><span>New puzzles are on the way. Older ones are in the archive.</span><a class="btn btn-ink" href="#archive">Open the archive</a>';
       }
       body.innerHTML = '<div class="wrap"><div class="status-card' + (kind === 'error' ? ' error' : '') + '">' + ART_SVG + inner + '</div></div>';
       const r = $('#btnRetry');
@@ -303,23 +309,21 @@
     const hero = $('#hero');
     $('#heroInner').innerHTML =
       '<div class="hero-kicker">' +
-        '<span class="kicker"><b>#' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + '</span>' +
-        (practice ? '<span class="pill pill-practice"><span class="pill-dot"></span>Practice</span>' : '<span class="pill pill-daily"><span class="pill-dot"></span>Daily</span>') +
-        (pz.theme ? '<span class="pill pill-theme">' + esc(pz.theme) + '</span>' : '') +
+        '<span><b>No. ' + pz.n + '</b> · ' + esc(fmtDateLong(pz.date)) + (pz.theme ? ' · ' + esc(pz.theme) : '') + '</span>' +
+        '<span class="hero-status' + (practice ? ' practice' : '') + '">' + (practice ? 'Practice replay' : 'Daily puzzle') + '</span>' +
       '</div>' +
-      '<h1 class="hero-title" id="heroTitle">' + esc(S.tagline || 'Connect two players through teammates.') + '</h1>' +
       '<div class="matchup">' +
         heroCard(a, 'Start', 'pcard-start') +
-        '<div class="gap-link" aria-hidden="true"><svg class="dash" height="4"><line x1="0" y1="2" x2="100%" y2="2"/></svg><span class="knot">' + LINK_SVG + '</span></div>' +
+        '<div class="gap-link" aria-hidden="true"><span class="knot">' + LINK_SVG + '</span></div>' +
         heroCard(b, 'Finish', 'pcard-end') +
       '</div>' +
       '<div class="hero-foot">' +
         '<span class="par-badge" aria-label="Par ' + pz.par + ' links">Par ' + pz.par + '</span>' +
-        '<span class="hero-note">' + (practice ? 'Archive replay · doesn\'t count toward stats' : 'Fewest links possible: ' + pz.par) + '</span>' +
+        '<h1 class="hero-title" id="heroTitle">' + esc(S.tagline || 'Connect two players through teammates.') + ' ' +
+          (practice ? 'This replay doesn\'t count toward your stats.' : 'Fewest links possible: <b>' + pz.par + '</b>.') + '</h1>' +
       '</div>';
-    if (!hero.querySelector('.hero-edge')) hero.insertAdjacentHTML('beforeend', '<div class="hero-edge" aria-hidden="true"></div>');
     hero.classList.remove('intro'); reflow(hero); hero.classList.add('intro');
-    setKicker('<span class="k-word">' + (practice ? 'Practice ' : 'Puzzle ') + '</span><b>#' + pz.n + '</b>');
+    setKicker('<span class="k-word">' + (practice ? 'Practice, ' : '') + '</span><b>No. ' + pz.n + '</b>');
   }
 
   /* ------------------------------------------------------------ chain */
@@ -387,13 +391,13 @@
     if (!playing) {
       strip.innerHTML = '<div><div class="rs-score ' + (won && sc.over === 0 ? 'is-par' : lost ? 'is-x' : '') + '">' + esc(won ? sc.label : S.lost) + '</div>' +
         '<small>' + (won ? 'Solved in ' + plural(sc.links, 'link') + ' · Par ' + st.par : plural(st.inc, S.miss) + ' · Par ' + st.par) + '</small></div>' +
-        '<button type="button" class="btn btn-gold" id="btnSeeResults">See results</button>';
+        '<button type="button" class="btn btn-ink" id="btnSeeResults">See results</button>';
       $('#btnSeeResults').addEventListener('click', () => openResults());
     }
 
     renderControls();
     $('#ruleNote').textContent = playing
-      ? 'Teammates = same team, same season (' + seasonsRange() + ', regular season and playoffs).'
+      ? 'Teammates = ' + (S.rule || 'same team, same season') + ' (' + seasonsRange() + ').'
       : (game.mode === 'practice' ? 'Practice replay: not counted in your stats.' : '');
   }
 
@@ -730,6 +734,8 @@
     dlg.showModal();
     document.documentElement.classList.add('modal-open');
     requestAnimationFrame(() => requestAnimationFrame(() => dlg.classList.add('shown')));
+    const head = dlg.querySelector('h2[tabindex="-1"]');   // land on the title, not the close button
+    if (head) head.focus({ preventScroll: true });
   }
   function closeSheet(dlg, ms) {
     if (!dlg.open || dlg.classList.contains('closing')) return;
@@ -818,7 +824,7 @@
     if (!el) return;
     const left = rollAt - Date.now();
     if (left <= 0) {
-      el.closest('.countdown').innerHTML = '<span>New puzzle</span><a class="btn btn-gold" href="#" data-close>Play now</a>';
+      el.closest('.countdown').innerHTML = '<span>A new puzzle is out</span><a class="btn btn-primary" href="#" data-close>Play now</a>';
       clearInterval(countdownTimer);
       refreshToday();
       return;
@@ -851,7 +857,8 @@
       const to = Number(el.dataset.count);
       if (!(to > 0)) return;
       el.textContent = '0';
-      const dur = 650 + Math.min(500, to * 25), wait = (delay || 0) + i * tok('--stagger');
+      const dur = 600 + Math.min(300, to * 8), wait = (delay || 0) + i * tok('--stagger');
+      setTimeout(() => { el.textContent = String(to); }, wait + dur + 250);   // always land on the true value
       let t0 = null;
       const step = (now) => {             // rAF timestamps only, so one clock drives the whole count
         if (t0 === null) t0 = now + wait;
@@ -876,9 +883,9 @@
     const secOpen = (id) => '<section class="sheet-sec" style="--i:' + (sec++) + '" aria-labelledby="' + id + '">';
 
     $('#sheetScroll').innerHTML =
-      '<header class="sheet-hero' + (atPar ? ' par' : '') + '" data-drag>' +
+      '<header class="sheet-hero" data-drag>' +
         '<button type="button" class="close-btn" data-close aria-label="Close results">' + CLOSE_SVG + '</button>' +
-        '<span class="kicker">' + esc(S.title) + ' <b>#' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + (practice ? ' · Practice' : '') + '</span>' +
+        '<span class="kicker">' + esc(S.title) + ' <b>No. ' + pz.n + '</b> · ' + esc(fmtDate(pz.date)) + (practice ? ' · Practice' : '') + '</span>' +
         '<div class="score-big ' + (atPar ? 'is-par' : won ? '' : 'is-x') + '" aria-hidden="true">' + esc(sc.label) + '</div>' +
         '<h2 id="sheetTitle" tabindex="-1">' + (won ? (atPar ? 'Right on par!' : 'Solved, ' + sc.label + ' over par') : esc(S.lost)) + '</h2>' +
         '<p>' + esc(won ? sub : plural(st.inc, S.miss) + ' · ' + plural(st.hints, 'hint') + ' · Par ' + pz.par) + '</p>' +
@@ -887,8 +894,8 @@
         secOpen('shTitle') + '<h3 id="shTitle">Share <span>No spoilers</span></h3>' +
           '<pre class="share-preview" id="sharePreview">' + esc(share) + '</pre>' +
           '<div class="share-btns">' +
-            (navigator.share ? '<button type="button" class="btn btn-accent btn-lg" id="btnShare"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>Share</button>' : '') +
-            '<button type="button" class="btn ' + (navigator.share ? '' : 'btn-accent ') + 'btn-lg" id="btnCopy"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>Copy result</span></button>' +
+            (navigator.share ? '<button type="button" class="btn btn-primary btn-lg" id="btnShare"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>Share</button>' : '') +
+            '<button type="button" class="btn ' + (navigator.share ? '' : 'btn-primary ') + 'btn-lg" id="btnCopy"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>Copy result</span></button>' +
           '</div>' +
         '</section>' +
         (practice ? '<p class="practice-note sheet-sec" style="--i:' + (sec++) + '">Practice replay of puzzle #' + pz.n + '. It doesn\'t count toward your stats or streaks.</p>'
@@ -955,7 +962,7 @@
             '<span class="h-track"><span class="h-bar" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '"></span><span class="h-num" style="--w:' + Math.round((c / max) * 100) + ';--i:' + i + '">' + c + '</span></span></li>';
         }).join('') + '</ol>' : '<p class="empty-note">Finish a daily puzzle to start your record.</p>') +
       '</section>' +
-      '<div class="back-row"><a class="btn btn-accent" href="#">Back to today\'s puzzle</a></div>';
+      '<div class="back-row"><a class="btn btn-ink" href="#">Back to today\'s puzzle</a></div>';
     setKicker(todayKicker());
     showView('stats');
     animateCounts($('#statsBody'), 80);
@@ -980,9 +987,9 @@
       let b = badgeFor(vd), note = '';
       if (vd && vd.status !== 'playing') note = 'Daily';
       else if (!isToday && badgeFor(vp)) { b = badgeFor(vp); note = 'Practice'; }
-      if (!b) b = { cls: 'play', text: 'Play' };
+      if (!b) b = { cls: 'play', text: 'Play →' };
       html += '<li><a class="arch-row' + (isToday ? ' today' : '') + '" href="#' + n + '" style="--i:' + i + '" aria-label="Puzzle ' + n + ', ' + esc(fmtDate(p.date, true)) + ', par ' + p.par + (p.theme ? ', ' + esc(p.theme) : '') + '. ' + esc(b.text) + (note ? ' (' + note + ')' : '') + '">' +
-        '<span class="arch-n">#' + n + '</span>' +
+        '<span class="arch-n"><small>No.</small>' + n + '</span>' +
         '<span class="arch-who"><strong>' + esc(fmtDate(p.date)) + (isToday ? ' <span class="today-tag">· Today</span>' : '') + '</strong><small>Par ' + p.par + (p.theme ? ' · ' + esc(p.theme) : '') + '</small></span>' +
         '<span class="badge-wrap"><span class="badge ' + b.cls + '">' + esc(b.text) + '</span>' + (note ? '<small>' + note + '</small>' : '') + '</span></a></li>';
     }
@@ -994,21 +1001,15 @@
   /* ------------------------------------------------------------ how to play / about */
   const dlgHelp = $('#dlgHelp'), dlgAbout = $('#dlgAbout');
   function helpHTML() {
-    return '<p><strong>' + esc(S.tagline) + '</strong> A new puzzle drops every day at midnight Eastern.</p>' +
-      '<ol class="steps">' +
-        '<li style="--i:0">You get a <strong>Start</strong> and a <strong>Finish</strong> player. Add players one at a time to build a chain between them.</li>' +
-        '<li style="--i:1">Each player you add must have been a <strong>teammate</strong> of the last one: same team, same season. When your last player was a teammate of the Finish player, you\'ve solved it.</li>' +
-        '<li style="--i:2"><strong>Par</strong> is the fewest links possible. Match it for a perfect score; every extra link is +1.</li>' +
-        '<li style="--i:3">You have <strong>' + H.DOWNS + ' ' + esc(LIVES) + '</strong>. A guess that wasn\'t a teammate is an ' + esc(S.miss) + ' and costs a ' + esc(LIFE) + '. Lose them all and it\'s a ' + esc(S.lost.toLowerCase()) + '.</li>' +
-        '<li style="--i:4"><strong>Undo</strong> is free. A <strong>hint</strong> names the team and season of the next link, and costs a ' + esc(LIFE) + '.</li>' +
-      '</ol>' +
-      '<div class="mini-chain" aria-label="Example">' +
-        '<div class="mc-node"><span class="mc-dot s">S</span>Start player</div><div class="mc-link">Teammates on the 2015 team</div>' +
-        '<div class="mc-node"><span class="mc-dot">2</span>A player you add</div><div class="mc-link">Teammates on the 2019 team</div>' +
-        '<div class="mc-node"><span class="mc-dot g">F</span>Finish player</div>' +
-      '</div>' +
+    return '<p class="lede">' + esc(S.tagline) + ' A new puzzle every day at midnight Eastern.</p>' +
+      '<ul class="rules">' +
+        '<li style="--i:0"><span class="runin">The chain.</span>You get a Start and a Finish player. Add players one at a time; each must have been a <strong>teammate</strong> of the one before (' + esc(S.rule || 'same team, same season') + '). Reach a teammate of the Finish player and you\'ve solved it.</li>' +
+        '<li style="--i:1"><span class="runin">Par.</span>The fewest links possible. Match it for a perfect score; every extra link is +1.</li>' +
+        '<li style="--i:2"><span class="runin">' + esc(cap(LIVES)) + '.</span>You have ' + H.DOWNS + '. A guess that wasn\'t a teammate is an ' + esc(S.miss) + ' and costs one. Lose them all and it\'s a ' + esc(S.lost.toLowerCase()) + '.</li>' +
+        '<li style="--i:3"><span class="runin">Help.</span>Undo is free. A hint names the team and season of the next link, and costs a ' + esc(LIFE) + '.</li>' +
+      '</ul>' +
       '<p class="fine">Seasons ' + esc(seasonsRange()) + ', regular season and playoffs. Your progress and stats stay on this device.</p>' +
-      '<button type="button" class="btn btn-accent btn-wide btn-lg" data-close>Let\'s play</button>';
+      '<button type="button" class="btn btn-ink btn-wide btn-lg" data-close>Start playing</button>';
   }
   function aboutHTML() {
     const built = playersJson && playersJson.built ? fmtDate(playersJson.built, true) : 'unknown';

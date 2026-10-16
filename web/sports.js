@@ -16,6 +16,8 @@
       miss: 'incompletion',
       lost: 'Turnover on downs',
       tagline: 'Connect two players through teammates.',
+      // Who counts as a teammate (docs/spec.md, Stints). Shown under the chain and in How to play.
+      rule: 'on the same 53-man roster in the same season',
       league: 'NFL',
       disclaimer: 'Unofficial fan game. Not affiliated with or endorsed by the NFL, NFLPA, or any team.',
       attribution: { text: 'Player data from nflverse (CC-BY 4.0)', href: 'https://github.com/nflverse' },

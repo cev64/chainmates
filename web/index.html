@@ -9,8 +9,8 @@
   <meta property="og:site_name" content="Chainmates" />
   <meta property="og:title" content="Chainmates · Daily teammate chain" />
   <meta property="og:description" content="Connect two players through teammates. A new puzzle every day." />
-  <meta name="theme-color" content="#f4f3f9" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0c0b16" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -21,11 +21,11 @@
     document.documentElement.setAttribute('data-sport', 'nfl');
   </script>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22%3E%3Crect width=%2240%22 height=%2240%22 rx=%2211%22 fill=%22%2317123a%22/%3E%3Cdefs%3E%3CclipPath id=%22k%22%3E%3Crect x=%2212%22 y=%226%22 width=%2216%22 height=%2214%22/%3E%3C/clipPath%3E%3C/defs%3E%3Cg transform=%22rotate%28-32 20 20%29%22 fill=%22none%22 stroke-width=%224.2%22%3E%3Crect x=%224%22 y=%2212%22 width=%2220%22 height=%2216%22 rx=%228%22 stroke=%22%238b6dff%22/%3E%3Crect x=%2216%22 y=%2212%22 width=%2220%22 height=%2216%22 rx=%228%22 stroke=%22%23ffc23d%22/%3E%3Crect x=%224%22 y=%2212%22 width=%2220%22 height=%2216%22 rx=%228%22 stroke=%22%238b6dff%22 clip-path=%22url%28%23k%29%22/%3E%3C/g%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22%3E%3Crect width=%2240%22 height=%2240%22 rx=%228%22 fill=%22%231a1917%22/%3E%3Cdefs%3E%3CclipPath id=%22k%22%3E%3Crect x=%2212%22 y=%226%22 width=%2216%22 height=%2214%22/%3E%3C/clipPath%3E%3C/defs%3E%3Cg transform=%22rotate%28-32 20 20%29%22 fill=%22none%22 stroke-width=%224.2%22%3E%3Crect x=%224%22 y=%2212%22 width=%2220%22 height=%2216%22 rx=%228%22 stroke=%22%23f6f3ec%22/%3E%3Crect x=%2216%22 y=%2212%22 width=%2220%22 height=%2216%22 rx=%228%22 stroke=%22%23e8590c%22/%3E%3Crect x=%224%22 y=%2212%22 width=%2220%22 height=%2216%22 rx=%228%22 stroke=%22%23f6f3ec%22 clip-path=%22url%28%23k%29%22/%3E%3C/g%3E%3C/svg%3E" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Manrope:wght@500..800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Libre+Franklin:wght@400..800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="app.css" />
   <script src="core/handoff-core.js" defer></script>
   <script src="sports.js" defer></script>
@@ -37,10 +37,10 @@
   <header class="topbar" id="topbar">
     <div class="wrap topbar-inner">
       <a class="brand" href="#" id="brand" aria-label="Chainmates, today's puzzle">
-        <svg class="brand-mark" viewBox="0 0 40 40" width="36" height="36" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#17123a"/><defs><clipPath id="hdrClip"><rect x="12" y="6" width="16" height="14"/></clipPath></defs><g transform="rotate(-32 20 20)" fill="none" stroke-width="4.2"><rect x="4" y="12" width="20" height="16" rx="8" stroke="#8b6dff"/><rect x="16" y="12" width="20" height="16" rx="8" stroke="#ffc23d"/><rect x="4" y="12" width="20" height="16" rx="8" stroke="#8b6dff" clip-path="url(#hdrClip)"/></g></svg>
+        <svg class="brand-mark" viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><defs><clipPath id="hdrClip"><rect x="12" y="6" width="16" height="14"/></clipPath></defs><g transform="rotate(-32 20 20)" fill="none" stroke-width="4.2"><rect x="4" y="12" width="20" height="16" rx="8" stroke="var(--ink)"/><rect x="16" y="12" width="20" height="16" rx="8" stroke="var(--accent)"/><rect x="4" y="12" width="20" height="16" rx="8" stroke="var(--ink)" clip-path="url(#hdrClip)"/></g></svg>
         <span class="brand-text">
           <span class="brand-title" id="brandTitle">chain<span class="brand-accent">mates</span></span>
-          <span class="brand-sub"><span class="mode-pill" id="brandMode">Football</span><span class="brand-kicker" id="brandKicker"></span></span>
+          <span class="brand-sub"><span class="brand-mode" id="brandMode">Football</span><span class="brand-kicker" id="brandKicker"></span></span>
         </span>
       </a>
       <span class="sport-pick" id="sportPick" hidden></span>
@@ -67,8 +67,13 @@
     <!-- loading skeleton / error / not available -->
     <section class="view view-status" id="viewStatus" aria-live="polite" aria-busy="true">
       <div id="statusBody">
-        <div class="skel-hero"><div class="wrap"><div class="skel skel-line w40"></div><div class="skel-cards"><div class="skel skel-card"></div><div class="skel skel-card"></div></div></div></div>
-        <div class="wrap"><div class="skel-chain"><div class="skel skel-node"></div><div class="skel skel-field"></div><div class="skel skel-node"></div></div><p class="sr-only">Loading today's puzzle…</p></div>
+        <div class="wrap skel-wrap">
+          <div class="skel skel-line"></div>
+          <div class="skel-cards"><div><div class="skel skel-name"></div><div class="skel skel-meta"></div></div><div><div class="skel skel-name"></div><div class="skel skel-meta"></div></div></div>
+          <div class="skel skel-rule"></div>
+          <div class="skel skel-node"></div><div class="skel skel-field"></div><div class="skel skel-node"></div>
+          <p class="skel-note">Loading today's puzzle…</p>
+        </div>
       </div>
     </section>
 
@@ -79,7 +84,7 @@
       </div>
 
       <div class="wrap game-body">
-        <section class="card chain-card" id="chainCard" aria-labelledby="chainTitle">
+        <section class="chain-card" id="chainCard" aria-labelledby="chainTitle">
           <div class="shimmer" aria-hidden="true"></div>
           <div class="card-head">
             <h2 id="chainTitle">Your chain</h2>
@@ -130,7 +135,7 @@
     <section class="view view-page" id="viewArchive" hidden aria-labelledby="archiveTitle">
       <div class="wrap">
         <div class="page-title">
-          <h1 id="archiveTitle"><svg viewBox="0 0 40 24" width="34" height="20" aria-hidden="true" fill="none" stroke-width="4"><rect x="2" y="3" width="22" height="18" rx="9" stroke="var(--accent)"/><rect x="16" y="3" width="22" height="18" rx="9" stroke="var(--gold)"/></svg>Archive</h1>
+          <h1 id="archiveTitle"><svg viewBox="0 0 40 24" width="30" height="18" aria-hidden="true" fill="none" stroke-width="3.5"><rect x="2" y="3" width="22" height="18" rx="9" stroke="var(--ink)"/><rect x="16" y="3" width="22" height="18" rx="9" stroke="var(--accent)"/></svg>Archive</h1>
           <p>Every puzzle so far. Replays are practice and don't change your stats.</p>
         </div>
         <ol class="archive" id="archiveList"></ol>
@@ -141,7 +146,7 @@
     <section class="view view-page" id="viewStats" hidden aria-labelledby="statsTitle">
       <div class="wrap">
         <div class="page-title">
-          <h1 id="statsTitle"><svg viewBox="0 0 40 24" width="34" height="20" aria-hidden="true" fill="none" stroke-width="4"><rect x="2" y="3" width="22" height="18" rx="9" stroke="var(--accent)"/><rect x="16" y="3" width="22" height="18" rx="9" stroke="var(--gold)"/></svg>Statistics</h1>
+          <h1 id="statsTitle"><svg viewBox="0 0 40 24" width="30" height="18" aria-hidden="true" fill="none" stroke-width="3.5"><rect x="2" y="3" width="22" height="18" rx="9" stroke="var(--ink)"/><rect x="16" y="3" width="22" height="18" rx="9" stroke="var(--accent)"/></svg>Statistics</h1>
           <p>Daily puzzles only, kept on this device.</p>
         </div>
         <div id="statsBody"></div>
@@ -177,7 +182,7 @@
       <div class="sheet-grab" aria-hidden="true"></div>
       <div class="sheet-scroll">
         <div class="dlg-head" data-drag>
-          <h2 id="helpTitle">How to play</h2>
+          <h2 id="helpTitle" tabindex="-1">How to play</h2>
           <button type="button" class="close-btn" data-close aria-label="Close">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
           </button>
@@ -194,7 +199,7 @@
       <div class="sheet-grab" aria-hidden="true"></div>
       <div class="sheet-scroll">
         <div class="dlg-head" data-drag>
-          <h2 id="aboutTitle">About</h2>
+          <h2 id="aboutTitle" tabindex="-1">About</h2>
           <button type="button" class="close-btn" data-close aria-label="Close">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
           </button>
@@ -211,7 +216,7 @@
       <p id="hintDesc"></p>
       <div class="confirm-actions">
         <button class="btn" value="cancel">Not now</button>
-        <button class="btn btn-accent" value="ok" id="hintOk">Show hint</button>
+        <button class="btn btn-primary" value="ok" id="hintOk">Show hint</button>
       </div>
     </form>
   </dialog>
