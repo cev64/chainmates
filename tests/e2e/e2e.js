@@ -130,7 +130,7 @@ async function run(b, { label, width, height, scheme, mobile, full }) {
   check(sheetText.includes(`${pz.optimal.toLocaleString('en-US')} optimal chains exist`), `${label}: optimal count shown`);
   const share = await p.locator('#sharePreview').innerText();
   check(share.split('\n')[0].endsWith(' · Hard'), `${label}: hard share line "${share.split('\n')[0]}"`);
-  check(share.startsWith('Chainmates #' + pz.n) && share.includes('cev64.github.io/handoff/#' + pz.n) && share.includes(optimalLabel === 'Par' ? '\u26f3' : optimalLabel), `${label}: share text ok`);
+  check(share.startsWith('Chainmates #' + pz.n) && share.includes('cev64.github.io/chainmates/#' + pz.n) && share.includes(optimalLabel === 'Par' ? '\u26f3' : optimalLabel), `${label}: share text ok`);
   await shot('3-results');
   await p.click('#btnCopy');
   await p.waitForTimeout(300);

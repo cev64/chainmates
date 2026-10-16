@@ -529,31 +529,31 @@ test('score labels: states without best (older data) use best = par', () => {
 test('shareText: birdie with 1 incompletion', () => {
   const s = play(P1, ['T012', 'T004', 'T007']);
   const text = H.shareText({ ...P1, n: 42 }, s);
-  assert.equal(text, 'Chainmates #42 \u{1F3C8}\n\u{1F7E9}\u{1F7E9}\u{1F7E9} 3 links · Par 4 · Birdie \u{1F426}\n\u{1F7E5} 1 incompletion\ncev64.github.io/handoff/#42');
-  assert.equal(text, 'Chainmates #42 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\n🟥 1 incompletion\ncev64.github.io/handoff/#42');
+  assert.equal(text, 'Chainmates #42 \u{1F3C8}\n\u{1F7E9}\u{1F7E9}\u{1F7E9} 3 links · Par 4 · Birdie \u{1F426}\n\u{1F7E5} 1 incompletion\ncev64.github.io/chainmates/#42');
+  assert.equal(text, 'Chainmates #42 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\n🟥 1 incompletion\ncev64.github.io/chainmates/#42');
 });
 
 test('shareText: par win', () => {
   const s = play(P1, ['T004', 'T006', 'T007']);
-  assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🟩🟩🟩🟩 4 links · Par 4 ⛳\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🟩🟩🟩🟩 4 links · Par 4 ⛳\ncev64.github.io/chainmates/#1');
 });
 
 test('shareText: +1 win with a hint, +3 win', () => {
   const s = play(P1, ['T015', 'T006', 'T004', 'h', 'T007']);
   assert.equal(s.hints, 1);
-  assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🟩🟩🟩🟩🟨 5 links · Par 4 (+1)\n💡 1 hint\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🟩🟩🟩🟩🟨 5 links · Par 4 (+1)\n💡 1 hint\ncev64.github.io/chainmates/#1');
   // 7 links: four green squares (up to par), three yellow beyond it
   const far = { ...easy(P1), chain: ['T001', 'a', 'b', 'c', 'd', 'e', 'f', 'T003'], status: 'won', inc: 2 };
-  assert.equal(H.shareText(P1, far), 'Chainmates #1 🏈\n🟩🟩🟩🟩🟨🟨🟨 7 links · Par 4 (+3)\n🟥 2 incompletions\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, far), 'Chainmates #1 🏈\n🟩🟩🟩🟩🟨🟨🟨 7 links · Par 4 (+3)\n🟥 2 incompletions\ncev64.github.io/chainmates/#1');
 });
 
 test('shareText: "link" is singular for one link, an Eagle-sized gap in an untagged (easy) state', () => {
   const eagle = { n: 5, best: 3, par: 4 };
   const es = { ...easy(eagle), par: 5, chain: ['a', 'b', 'c', 'd'], status: 'won' };
-  assert.equal(H.shareText(eagle, es), 'Chainmates #5 🏈\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\ncev64.github.io/handoff/#5');
+  assert.equal(H.shareText(eagle, es), 'Chainmates #5 🏈\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\ncev64.github.io/chainmates/#5');
   const one = { n: 6, best: 1, par: 2 };
   const os = { ...easy(one), chain: ['a', 'b'], status: 'won' };
-  assert.equal(H.shareText(one, os), 'Chainmates #6 🏈\n🟩 1 link · Par 2 · Birdie 🐦\ncev64.github.io/handoff/#6');
+  assert.equal(H.shareText(one, os), 'Chainmates #6 🏈\n🟩 1 link · Par 2 · Birdie 🐦\ncev64.github.io/chainmates/#6');
   assert.doesNotMatch(H.shareText(one, os), /1 links/);
   const onePar = { n: 7, best: 0, par: 1 };
   assert.match(H.shareText(onePar, { ...easy(onePar), par: 1, chain: ['a', 'b'], status: 'won' }), /🟩 1 link · Par 1 ⛳/u);
@@ -562,29 +562,29 @@ test('shareText: "link" is singular for one link, an Eagle-sized gap in an untag
 test('shareText: loss, plural lines, custom url/title/emoji', () => {
   const s = play(P1, ['h', 'h', 'T012', 'T017']); // hint (downs 2), repeat free, 2 incompletions -> lost
   assert.equal(s.status, 'lost');
-  assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🏳️ Turnover on downs · Par 4\n🟥 2 incompletions\n💡 1 hint\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, s), 'Chainmates #1 🏈\n🏳️ Turnover on downs · Par 4\n🟥 2 incompletions\n💡 1 hint\ncev64.github.io/chainmates/#1');
   const t = H.shareText(P1, s, { url: 'example.com/h/', title: 'Chainmates NBA', emoji: '🏀' });
   assert.equal(t, 'Chainmates NBA #1 🏀\n🏳️ Turnover on downs · Par 4\n🟥 2 incompletions\n💡 1 hint\nexample.com/h/#1');
   const clean = play(P1, ['T004', 'T007']);
-  assert.equal(H.shareText(P1, clean), 'Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, clean), 'Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\ncev64.github.io/chainmates/#1');
   // never leaks names
   assert.doesNotMatch(H.shareText(P1, clean), /Marlow|Tolliver|Broncos|DEN/);
   const multi = play(P1, ['h', 'T004', 'h', 'T007']);
   assert.match(H.shareText(P1, multi), /\u{1F4A1} 2 hints/u);
   // a lost game shows no score label, whatever progress was made
   const late = play(P1, ['T004', 'T012', 'T017', 'T010']);
-  assert.equal(H.shareText(P1, late), 'Chainmates #1 🏈\n🏳️ Turnover on downs · Par 4\n🟥 3 incompletions\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, late), 'Chainmates #1 🏈\n🏳️ Turnover on downs · Par 4\n🟥 3 incompletions\ncev64.github.io/chainmates/#1');
 });
 
 test('shareText: custom miss / lost words replace the football defaults', () => {
   const opts = { miss: 'strike', lost: 'Out of strikes' };
   const lost = play(P1, ['T012', 'T017', 'T010']);
   const lt = H.shareText(P1, lost, opts);
-  assert.equal(lt, 'Chainmates #1 🏈\n🏳️ Out of strikes · Par 4\n🟥 3 strikes\ncev64.github.io/handoff/#1');
+  assert.equal(lt, 'Chainmates #1 🏈\n🏳️ Out of strikes · Par 4\n🟥 3 strikes\ncev64.github.io/chainmates/#1');
   assert.doesNotMatch(lt, /incompletion|Turnover|downs/);
   // singular and plural on a win
   const one = play(P1, ['T012', 'T004', 'T007']);
-  assert.equal(H.shareText(P1, one, opts), 'Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\n🟥 1 strike\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, one, opts), 'Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\n🟥 1 strike\ncev64.github.io/chainmates/#1');
   const two = play(P1, ['T012', 'T017', 'T004', 'T007']);
   assert.match(H.shareText(P1, two, opts), /\n🟥 2 strikes\n/u);
   // zero misses: no line at all, and `lost` is unused on a win
@@ -599,13 +599,13 @@ test('shareText: custom miss / lost words replace the football defaults', () => 
 test('shareText: states saved before modes existed read as before (no tag, own par)', () => {
   const birdie = play(P3, ['T007'], 'legacy');
   assert.equal(birdie.mode, undefined);
-  assert.equal(H.shareText({ ...P3, n: 3 }, birdie), 'Chainmates #3 🏈\n🟩🟩 2 links · Par 3 · Birdie 🐦\ncev64.github.io/handoff/#3');
+  assert.equal(H.shareText({ ...P3, n: 3 }, birdie), 'Chainmates #3 🏈\n🟩🟩 2 links · Par 3 · Birdie 🐦\ncev64.github.io/chainmates/#3');
   const over = play(P1, ['T004', 'T006', 'T007', 'T003'].slice(0, 3), 'legacy');
-  assert.equal(H.shareText(P1, over), 'Chainmates #1 🏈\n🟩🟩🟩🟩 4 links · Par 4 ⛳\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, over), 'Chainmates #1 🏈\n🟩🟩🟩🟩 4 links · Par 4 ⛳\ncev64.github.io/chainmates/#1');
   // a state with no par at all falls back to parFor(puzzle, mode); no mode on the state reads as easy
   const bare = { chain: ['a', 'b', 'c', 'd'], status: 'won', inc: 0, hints: 0 };
-  assert.equal(H.shareText(P1, bare), 'Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\ncev64.github.io/handoff/#1');
-  assert.equal(H.shareText(P1, { ...bare, mode: 'hard' }), 'Chainmates #1 🏈 · Hard\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\ncev64.github.io/handoff/#1');
+  assert.equal(H.shareText(P1, bare), 'Chainmates #1 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\ncev64.github.io/chainmates/#1');
+  assert.equal(H.shareText(P1, { ...bare, mode: 'hard' }), 'Chainmates #1 🏈 · Hard\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\ncev64.github.io/chainmates/#1');
   assert.equal(H.shareText(P1, { ...bare, mode: 'easy' }), H.shareText(P1, bare));
   // the state's par wins over the puzzle's (puzzles.json par is the easy par)
   assert.match(H.shareText(P1, { ...bare, best: 3, par: 5, mode: 'hard' }), /Par 5 · Eagle/);
@@ -874,7 +874,7 @@ test('setMode: states saved before modes existed count as easy', () => {
 });
 
 test('shareText: hard games carry a mode tag, easy and saved-before-modes ones do not', () => {
-  const T = 'cev64.github.io/handoff/#1';
+  const T = 'cev64.github.io/chainmates/#1';
   // hard eagle (optimal chain)
   assert.equal(H.shareText(P1, play(P1, ['T004', 'T007'], 'hard')), `Chainmates #1 🏈 · Hard\n🟩🟩🟩 3 links · Par 5 · Eagle 🦅\n${T}`);
   // hard birdie (best + 1)
@@ -1002,5 +1002,5 @@ test('puzzle 2 full run through the trade is a birdie', () => {
   assert.equal(s.status, 'won');
   assert.deepEqual(H.score(s), { links: 3, par: 4, best: 3, over: -1, label: 'Birdie', won: true, mode: 'easy' });
   assert.equal(H.validateChain(idx, s.chain).ok, true);
-  assert.equal(H.shareText(P2, s), 'Chainmates #2 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\ncev64.github.io/handoff/#2');
+  assert.equal(H.shareText(P2, s), 'Chainmates #2 🏈\n🟩🟩🟩 3 links · Par 4 · Birdie 🐦\ncev64.github.io/chainmates/#2');
 });

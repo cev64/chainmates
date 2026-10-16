@@ -9,7 +9,7 @@
 
   /* ------------------------------------------------------------ config */
   const CONFIG = {
-    shareUrl: 'cev64.github.io/handoff/', // base URL in the share text; the core appends "#n"
+    shareUrl: 'cev64.github.io/chainmates/', // base URL in the share text; the core appends "#n"
     searchLimit: 8,
     debounceMs: 100,
     toastMs: 3400,

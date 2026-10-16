@@ -9,7 +9,7 @@ Charlie doesn't want the game to be NFL-only, so nothing below the client's spor
 - **Web:** `web/sports.js` holds the sport-specific words, such as "downs", "incompletion" and "Turnover on downs". There is no sport picker until a second sport exists.
 - **Pipeline:** `tools/build_data.py` is the NFL builder. A new sport needs its own builder that writes the same format. Pipeline steps 4 and 5 (graph, BFS, puzzle picking) are generic and can be pulled into a shared module when the second sport lands.
 
-**Name: Chainmates** (Charlie, Oct 16, 2026). It's sport-neutral, and each sport is a mode: "Chainmates · Football". The football vocabulary (downs, incompletion, turnover on downs) belongs to the football mode. The domain chainmates.app looked unregistered on Oct 16; buy it before announcing. The share URL stays `cev64.github.io/handoff/` until then. Renaming the GitHub repo is optional, but Pages URLs follow the repo name.
+**Name: Chainmates** (Charlie, Oct 16, 2026). It's sport-neutral, and each sport is a mode: "Chainmates · Football". The football vocabulary (downs, incompletion, turnover on downs) belongs to the football mode. The domain chainmates.app looked unregistered on Oct 16; buy it before announcing. The share URL stays `cev64.github.io/chainmates/` until then. Renaming the GitHub repo is optional, but Pages URLs follow the repo name.
 
 **Data sources to check per sport:**
 
@@ -51,7 +51,33 @@ Apply the same rule as for the NFL: use no scraping of sites whose terms forbid 
   - **Pool sizes:** Monday uses the top 120 stars, Tuesday and Thursday the top 200, other days all ~314 stars.
   - **Friday deep cuts** (20% of Fridays) are one-time Pro Bowlers or long productive careers.
 
-: run `handoff-core.js` in JavaScriptCore; keep search and UI native
+## Playtest round 2 (Charlie, Oct 17, 2026)
+
+- **Prime-time puzzles feature a player from the game.**
+  - These are Thursday Night, Sunday Night and Monday Night, plus Saturday games, Thanksgiving Night and Christmas.
+  - One endpoint is a current (this season) star from either team, or, if neither team has a star free, another notable player from those rosters.
+  - The theme reads "Monday Night: Bills at Rams", and the puzzle stores `game: {slot, away, home}`.
+  - The franchise-weekend themes are gone.
+- **Flexed games.** The data workflow runs every morning, August through February, and reads the nflverse schedule fresh (cache of 6 hours or less).
+  - A future puzzle is re-picked when its date's featured game changed (flex, a move, or a new season's schedule).
+  - It is also re-picked when its game-day player is no longer on either roster.
+  - Today and earlier stay frozen.
+- **Era mix for a younger audience.**
+  - At least one endpoint played in the last five seasons.
+  - About 40% of puzzles use two current players.
+  - Never two players from way back.
+  - Who starts and who finishes is a coin flip.
+- **Hard mode is the default.**
+  - It shows no teams for players, in the chain or in search; position and years stay so same-name players can be told apart.
+  - Par = best + 2, so an optimal chain is an **Eagle**. Eagles are only possible on hard.
+- **Easy mode** shows every team a player was on, with years, and par = best + 1.
+- **Switching mode mid-game.**
+  - Hard → easy is allowed mid-game; par drops by one.
+  - Easy → hard only before the first move.
+- **Hard stays the default** (Charlie). Only a choice made before the first move changes the saved default. Dropping to easy mid-game applies to that puzzle only.
+- **Hero and help dialog.** The hero shows only "Par N". The puzzle explainer ("birdie in 4 · eagle in 3 … the shortest chain takes 3 links") lives in the ? dialog.
+
+## iOS architecture: run `handoff-core.js` in JavaScriptCore; keep search and UI native
 
 Pigskin Pantheon runs its whole site engine in a hidden WKWebView, because its engine is large and DOM-adjacent. Chainmates' core is different. It is about 430 lines of pure ES2018 with no DOM, fetch, timers or Intl dependency (Intl has a fallback), and it is exported as a UMD.
 

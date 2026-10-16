@@ -1,10 +1,17 @@
-# Deploys the web app to GitHub Pages. Manual only ("Run workflow" on the
-# Actions tab): deploys happen when Charlie asks, never on every push.
-# One-time setup: Settings > Pages > Source: GitHub Actions.
+# Deploys the web app to GitHub Pages.
+# - On every push to main that touches the site, core or data.
+# - After the daily data refresh commits new data (update-data.yml calls this,
+#   because a commit made by the workflow's own token doesn't trigger push runs).
+# - By hand: "Run workflow" on the Actions tab.
+# One-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
 name: Deploy site
 
 on:
+  push:
+    branches: [main]
+    paths: ["web/**", "core/**", "data/**", "tools/build_site.sh", ".github/workflows/pages.yml"]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -23,6 +30,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}   # the branch tip, so a call right after the data commit deploys that commit
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

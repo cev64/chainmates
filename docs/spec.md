@@ -184,7 +184,7 @@ Washington's nickname by season:
 Chainmates #42 🏈 · Hard
 🟩🟩🟩🟩🟩 5 links · Par 5 ⛳
 🟥 1 incompletion
-cev64.github.io/handoff/#42
+cev64.github.io/chainmates/#42
 ```
 
 - **Mode tag:** the first line ends with ` · Hard` for hard games. Easy games (and saves from before modes existed) have no tag. The word is `opts.hardLabel` (default `"Hard"`).
@@ -198,7 +198,7 @@ cev64.github.io/handoff/#42
 - **Hints:** `💡 N hint(s)`, omitted when 0.
 - **Lost:** the second line is `🏳️ Turnover on downs · Par 4`, followed by the incompletion and hint lines. The phrase is `opts.lost` (default `"Turnover on downs"`).
 - **Sport words:** `miss` and `lost` are the only sport-specific words in the share text. Other sports pass their own, such as `{miss: "turnover", lost: "Out of lives"}`.
-- **URL:** the last line is `{url}#{n}`. The base URL is a config option, defaulting to `cev64.github.io/handoff/`.
+- **URL:** the last line is `{url}#{n}`. The base URL is a config option, defaulting to `cev64.github.io/chainmates/`.
 - **Never** include player or team names in the share text.
 
 ## Stats (local, daily puzzles only; archive and practice plays don't count)
@@ -266,7 +266,7 @@ H.guess(index, state, id)     // -> {state, result} (state is a NEW object; inpu
 H.undo(state)                 // -> state (no-op if chain has only start or game over)
 H.hint(index, state)          // -> {state, hint:{team,season,pos}} | {state, error:"last-down"|"over"|"none"}
 H.score(state)                // {links, par, best, over, label:"Birdie"|"Eagle"|"Par"|"+1"|"X"|..., won, mode}
-H.shareText(puzzle, state, {url="cev64.github.io/handoff/", title="Chainmates", emoji="🏈", miss="incompletion", lost="Turnover on downs", hardLabel="Hard"}) // string per spec
+H.shareText(puzzle, state, {url="cev64.github.io/chainmates/", title="Chainmates", emoji="🏈", miss="incompletion", lost="Turnover on downs", hardLabel="Hard"}) // string per spec
 H.newStats() / H.recordResult(stats, puzzleN, state) -> stats / H.displayStreaks(stats, todayN) -> {cur, max, parCur, parMax}
 ```
 

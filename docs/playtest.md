@@ -42,4 +42,4 @@ Archive and replay games are practice, so they don't touch your stats.
 - There's no offline or installable mode yet.
 - There's no iOS app yet. That's milestone 6, after this playtest.
 - Puzzle numbers start at an epoch of 2026-10-12, a placeholder. At launch, rebuild with `--rebuild --epoch <launch date>` so No. 1 is launch day.
-- The share link points at `cev64.github.io/handoff/` until there's a domain (chainmates.app looked free on Oct 16).
+- The share link points at `cev64.github.io/chainmates/` until there's a domain (chainmates.app looked free on Oct 16).

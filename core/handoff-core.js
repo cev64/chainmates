@@ -430,7 +430,7 @@
   }
 
   function shareText(puzzle, state, opts) {
-    const url = (opts && opts.url) || 'cev64.github.io/handoff/';
+    const url = (opts && opts.url) || 'cev64.github.io/chainmates/';
     // A state without par (or best) borrows them from the puzzle: par = parFor(puzzle, mode), state mode missing = easy.
     const st = state.par != null ? state : Object.assign({}, state, { par: parFor(puzzle, stateMode(state)), best: state.best != null ? state.best : puzzle.best != null ? puzzle.best : puzzle.par });
     const sc = score(st), over = sc.over, par = st.par;

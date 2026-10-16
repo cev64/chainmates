@@ -25,6 +25,8 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,9 +58,11 @@ jobs:
           npm test
 
       - name: Commit if anything changed
+        id: commit
         run: |
           if git diff --quiet -- data/; then
             echo "No data changes."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
@@ -66,3 +70,14 @@ jobs:
           git add data/
           git commit -m "Update data from nflverse ($(date -u +%Y-%m-%d))"
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+  # Ship the new data to the live site.
+  deploy:
+    needs: update
+    if: needs.update.outputs.changed == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml

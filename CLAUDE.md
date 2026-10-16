@@ -43,4 +43,4 @@ Read these before changing anything:
   - Show Charlie simulator screenshots for every iOS change.
   - iPad is landscape and iPhone is portrait.
   - Match Pigskin Pantheon's App Store rules: playable signed out, no prices or "Pro" text, StoreKit for unlocks, and keep `PrivacyInfo.xcprivacy` up to date.
-- **Git:** push and deploy only when Charlie asks. Never force push.
+- **Git:** `main` is the live site. Every push to `main` deploys to GitHub Pages, and so does the daily data bot. Work on a branch, and merge or push to `main` only when Charlie asks. Never force push.
