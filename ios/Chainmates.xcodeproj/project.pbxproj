@@ -1,0 +1,436 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CC0000000000000000000101 /* handoff-core.js in Resources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000201 /* handoff-core.js */; };
+		CC0000000000000000000102 /* players.json in Resources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000202 /* players.json */; };
+		CC0000000000000000000103 /* puzzles.json in Resources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000203 /* puzzles.json */; };
+		CC0000000000000000000104 /* vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000204 /* vectors.json */; };
+		CC0000000000000000000105 /* fixture-players.json in Resources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000205 /* fixture-players.json */; };
+		CC0000000000000000000106 /* fixture-puzzles.json in Resources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000206 /* fixture-puzzles.json */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CC0000000000000000000B01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CC0000000000000000000701 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC0000000000000000000601;
+			remoteInfo = Chainmates;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		CC0000000000000000000001 /* Chainmates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chainmates.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC0000000000000000000002 /* ChainmatesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChainmatesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC0000000000000000000201 /* handoff-core.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "handoff-core.js"; path = "../core/handoff-core.js"; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000202 /* players.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = players.json; path = ../data/nfl/players.json; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000203 /* puzzles.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = puzzles.json; path = ../data/nfl/puzzles.json; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000204 /* vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = vectors.json; path = ../core/test/vectors.json; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000205 /* fixture-players.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = "fixture-players.json"; path = "../core/test/fixture-players.json"; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000206 /* fixture-puzzles.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = "fixture-puzzles.json"; path = "../core/test/fixture-puzzles.json"; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		CC0000000000000000000301 /* Chainmates */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Chainmates;
+			sourceTree = "<group>";
+		};
+		CC0000000000000000000302 /* ChainmatesTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ChainmatesTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CC0000000000000000000401 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0000000000000000000402 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		CC0000000000000000000501 = {
+			isa = PBXGroup;
+			children = (
+				CC0000000000000000000301 /* Chainmates */,
+				CC0000000000000000000302 /* ChainmatesTests */,
+				CC0000000000000000000502 /* Shared Core and Data */,
+				CC0000000000000000000504 /* Shared Test Vectors */,
+				CC0000000000000000000503 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CC0000000000000000000502 /* Shared Core and Data */ = {
+			isa = PBXGroup;
+			children = (
+				CC0000000000000000000201 /* handoff-core.js */,
+				CC0000000000000000000202 /* players.json */,
+				CC0000000000000000000203 /* puzzles.json */,
+			);
+			name = "Shared Core and Data";
+			sourceTree = "<group>";
+		};
+		CC0000000000000000000504 /* Shared Test Vectors */ = {
+			isa = PBXGroup;
+			children = (
+				CC0000000000000000000204 /* vectors.json */,
+				CC0000000000000000000205 /* fixture-players.json */,
+				CC0000000000000000000206 /* fixture-puzzles.json */,
+			);
+			name = "Shared Test Vectors";
+			sourceTree = "<group>";
+		};
+		CC0000000000000000000503 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CC0000000000000000000001 /* Chainmates.app */,
+				CC0000000000000000000002 /* ChainmatesTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CC0000000000000000000601 /* Chainmates */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC0000000000000000000901 /* Build configuration list for PBXNativeTarget "Chainmates" */;
+			buildPhases = (
+				CC0000000000000000000801 /* Sources */,
+				CC0000000000000000000401 /* Frameworks */,
+				CC0000000000000000000802 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CC0000000000000000000301 /* Chainmates */,
+			);
+			name = Chainmates;
+			packageProductDependencies = (
+			);
+			productName = Chainmates;
+			productReference = CC0000000000000000000001 /* Chainmates.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CC0000000000000000000602 /* ChainmatesTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC0000000000000000000903 /* Build configuration list for PBXNativeTarget "ChainmatesTests" */;
+			buildPhases = (
+				CC0000000000000000000804 /* Sources */,
+				CC0000000000000000000402 /* Frameworks */,
+				CC0000000000000000000805 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CC0000000000000000000C01 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CC0000000000000000000302 /* ChainmatesTests */,
+			);
+			name = ChainmatesTests;
+			packageProductDependencies = (
+			);
+			productName = ChainmatesTests;
+			productReference = CC0000000000000000000002 /* ChainmatesTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CC0000000000000000000701 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2710;
+				LastUpgradeCheck = 2710;
+				TargetAttributes = {
+					CC0000000000000000000601 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+					CC0000000000000000000602 = {
+						CreatedOnToolsVersion = 27.1;
+						TestTargetID = CC0000000000000000000601;
+					};
+				};
+			};
+			buildConfigurationList = CC0000000000000000000902 /* Build configuration list for PBXProject "Chainmates" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = CC0000000000000000000501;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = CC0000000000000000000503 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CC0000000000000000000601 /* Chainmates */,
+				CC0000000000000000000602 /* ChainmatesTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CC0000000000000000000802 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC0000000000000000000101 /* handoff-core.js in Resources */,
+				CC0000000000000000000102 /* players.json in Resources */,
+				CC0000000000000000000103 /* puzzles.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0000000000000000000805 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC0000000000000000000104 /* vectors.json in Resources */,
+				CC0000000000000000000105 /* fixture-players.json in Resources */,
+				CC0000000000000000000106 /* fixture-puzzles.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CC0000000000000000000801 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0000000000000000000804 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CC0000000000000000000C01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC0000000000000000000601 /* Chainmates */;
+			targetProxy = CC0000000000000000000B01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		CC0000000000000000000A01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CC0000000000000000000A02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CC0000000000000000000A03 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZU74SXSMG;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Chainmates;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cev64.chainmates;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CC0000000000000000000A04 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZU74SXSMG;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Chainmates;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cev64.chainmates;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CC0000000000000000000A05 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZU74SXSMG;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cev64.chainmates.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chainmates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Chainmates";
+			};
+			name = Debug;
+		};
+		CC0000000000000000000A06 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZU74SXSMG;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cev64.chainmates.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chainmates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Chainmates";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CC0000000000000000000901 /* Build configuration list for PBXNativeTarget "Chainmates" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC0000000000000000000A03 /* Debug */,
+				CC0000000000000000000A04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC0000000000000000000902 /* Build configuration list for PBXProject "Chainmates" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC0000000000000000000A01 /* Debug */,
+				CC0000000000000000000A02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC0000000000000000000903 /* Build configuration list for PBXNativeTarget "ChainmatesTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC0000000000000000000A05 /* Debug */,
+				CC0000000000000000000A06 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CC0000000000000000000701 /* Project object */;
+}

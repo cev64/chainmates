@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Support · Chainmates</title>
-  <meta name="description" content="Help with Chainmates: how to play, what counts as teammates, streaks and reporting a problem." />
+  <meta name="description" content="Help with Chainmates, on the web and in the iOS app: how to play, what counts as teammates, streaks and reporting a problem." />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Chainmates" />
   <meta property="og:title" content="Support · Chainmates" />
-  <meta property="og:description" content="Help with Chainmates: how to play, what counts as teammates, streaks and reporting a problem." />
+  <meta property="og:description" content="Help with Chainmates, on the web and in the iOS app: how to play, what counts as teammates, streaks and reporting a problem." />
   <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)" />
   <script>try { var t = localStorage.getItem('chainmates.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
@@ -72,11 +72,13 @@
   <main class="lg-main" id="main">
     <article class="lg">
       <h1>Support</h1>
-      <p class="lg-meta">Help for the Chainmates website</p>
+      <p class="lg-meta">Help for the Chainmates website and the Chainmates iOS app</p>
 
       <div class="lg-box">
         <h2>Contact us</h2>
         <p>Found a bug or a wrong link? Open an issue at <a href="https://github.com/cev64/chainmates/issues" rel="noopener">github.com/cev64/chainmates/issues</a>. Say which puzzle number, what you guessed and what you expected. A screenshot helps. Chainmates is run by one person, so replies can take a few days.</p>
+        <!-- TODO(Charlie): support email -->
+        <p>Email: coming soon.</p>
         <a class="btn btn-ink lg-btn" href="https://github.com/cev64/chainmates/issues" rel="noopener">Report a problem</a>
       </div>
 
@@ -85,14 +87,14 @@
       <details>
         <summary>How do I play?</summary>
         <div>
-          <p>You get a Start player and a Finish player. Add players one at a time so that each one was a teammate of the player before. When your last player was a teammate of the Finish player, you&rsquo;ve solved it. Par is the fewest links possible plus one, so the shortest chain scores a birdie. You have three downs: a guess that wasn&rsquo;t a teammate is an incompletion and costs one. Undo is free. A hint reveals a team and a position for your next link, and costs a down. The <a href="./">game</a> has a How to play button (the question mark) at the top.</p>
+          <p>You get a Start player and a Finish player. Add players one at a time so that each one was a teammate of the player before. When your last player was a teammate of the Finish player, you&rsquo;ve solved it. Par is the fewest links possible plus some to spare (two on hard mode, one on easy), so one link under par is a birdie. You have three downs: a guess that wasn&rsquo;t a teammate is an incompletion and costs one. Undo is free. A hint reveals a team and a position for your next link, and costs a down. The <a href="./">game</a> and the iOS app both have a How to play button (the question mark) at the top.</p>
         </div>
       </details>
 
       <details>
         <summary>What counts as teammates?</summary>
         <div>
-          <p>Two players are teammates if they both appeared in at least one game for the same team in the same season, regular season or playoffs. Being on the same team in different seasons does not count. The data covers 2002 onward, so a player whose whole career ended before 2002 is not in the game.</p>
+          <p>Two players are teammates if both were on the same team&rsquo;s 53-man roster in the same season, regular season or playoffs. Being on the same team in different seasons does not count. The data covers 2002 onward, so a player whose whole career ended before 2002 is not in the game.</p>
         </div>
       </details>
 
@@ -113,21 +115,42 @@
       <details>
         <summary>Can I play old puzzles?</summary>
         <div>
-          <p>Yes. Open the Archive (the calendar button) and pick any earlier puzzle. Archive games are practice: they are saved separately and don&rsquo;t change your statistics or streaks. Future puzzles stay locked until their day.</p>
+          <p>Yes. Open the Archive (the calendar button, on the web and in the app) and pick any earlier puzzle. Archive games are practice: they are saved separately and don&rsquo;t change your statistics or streaks. Future puzzles stay locked until their day.</p>
         </div>
       </details>
 
       <details>
         <summary>My streak or progress disappeared.</summary>
         <div>
-          <p>Everything is saved only in your browser on this device. Clearing site data, using a private window, or switching to a different browser or device starts fresh. There are no accounts, so we can&rsquo;t restore it.</p>
+          <p>Everything is saved only on your device: in your browser on the website, and in the app&rsquo;s on-device storage in the iOS app. Clearing site data, using a private window, switching to a different browser or device, using Reset all data in the app, or deleting the app starts fresh. There are no accounts, so we can&rsquo;t restore it.</p>
         </div>
       </details>
 
       <details>
         <summary>Is it free? Does it track me?</summary>
         <div>
-          <p>Yes, it&rsquo;s free. There are no ads, no analytics and no accounts. See the <a href="privacy.html">Privacy Policy</a>.</p>
+          <p>Yes, it&rsquo;s free. There are no ads, no analytics, no purchases and no accounts, on the web or in the iOS app. See the <a href="privacy.html">Privacy Policy</a>.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>How do I delete my data in the app?</summary>
+        <div>
+          <p>Open About in the app and tap Reset all data. That erases your games, statistics and settings from the device. Deleting the app does the same. Nothing is stored anywhere else, so there is nothing to request from us.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Does the iOS app need an internet connection?</summary>
+        <div>
+          <p>No. Puzzles, players and the rules are bundled with the app, so you can play offline. When you are online it may quietly download updated puzzle data from cev64.github.io (GitHub Pages, which may log IP addresses like any web server). It sends no account or personal information.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>A player&rsquo;s name or details are wrong.</summary>
+        <div>
+          <p>Player names and rosters come from nflverse and can contain mistakes. To request a correction, <a href="https://github.com/cev64/chainmates/issues" rel="noopener">open an issue</a> with the player&rsquo;s name and what should change.</p>
         </div>
       </details>
 
