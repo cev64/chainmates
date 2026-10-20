@@ -184,10 +184,17 @@ struct StrokesHistogram: View {
         let index: Int
         let grown: Bool
         let reduceMotion: Bool
-        @State private var trackWidth: CGFloat = 0
 
         var body: some View {
-            let barWidth = max(26, trackWidth * fraction)
+            // Sized from the width the row offers, never from the bar itself: measuring the track
+            // with the bar inside held it at its old width when the window narrowed (folding the
+            // iPhone Duo), and the page overflowed.
+            GeometryReader { g in
+                track(barWidth: max(26, g.size.width * fraction))
+            }
+        }
+
+        private func track(barWidth: CGFloat) -> some View {
             ZStack(alignment: .leading) {
                 bar
                     .frame(width: barWidth)
@@ -205,8 +212,7 @@ struct StrokesHistogram: View {
                     .animation(reduceMotion ? .linear(duration: 0.15)
                                             : .timingCurve(0.2, 0.8, 0.2, 1, duration: 0.26).delay(Double(index) * 0.05 + 0.36), value: grown)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { trackWidth = $0 }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
 
         @ViewBuilder private var bar: some View {
