@@ -9,6 +9,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         @Bindable var app = app
@@ -38,7 +39,9 @@ struct RootView: View {
             }
         }
         .tabViewStyle(.tabBarOnly)
-        .tabBarMinimizeBehavior(.onScrollDown)
+        // Pinned across the top on an iPad or the unfolded Duo; on iPhone it tucks away while
+        // you scroll, as system apps do.
+        .tabBarMinimizeBehavior(sizeClass == .regular ? .never : .onScrollDown)
         .tint(Theme.accent)
         .sensoryFeedback(.selection, trigger: app.route)
         .sheet(item: $app.sheet) { sheet in
