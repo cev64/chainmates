@@ -3,9 +3,10 @@ import SwiftUI
 /// The game page: draws `app.session` (nothing when there's no puzzle; the shell shows the
 /// status view then). Host it in a `NavigationStack`: it adds Undo and Hint to the toolbar.
 ///
-/// Compact width, or regular in portrait: one 640-point column (masthead, then the chain) with
-/// the guess bar at the bottom. Regular width in landscape: two panes, the masthead and rules
-/// beside the chain and its guess bar, aligned to the Duo's fold on iOS 27.1.
+/// Compact width, regular in portrait, or a window too narrow for two panes: one 640-point
+/// column (masthead, then the chain) with the guess bar at the bottom. A wide landscape regular
+/// window: two panes, the masthead and rules beside the chain and its guess bar, aligned to the
+/// Duo's fold on iOS 27.1.
 struct GameScreen: View {
     @Environment(AppModel.self) private var app
 
@@ -31,7 +32,10 @@ private struct GameBoard: View {
         _c = State(initialValue: GameController(session: session, app: app))
     }
 
-    private var wide: Bool { sizeClass == .regular && size.width > size.height }
+    /// Two panes need room for both: a landscape regular window at least 860 points wide (iPad,
+    /// the unfolded iPhone Duo with its tabs at the top). Narrower, such as the Duo with the
+    /// sidebar open, keeps the site's single column rather than squeezing two.
+    private var wide: Bool { sizeClass == .regular && size.width > size.height && size.width >= 860 }
     private var listMax: CGFloat { min(420, max(120, min(visibleHeight * 0.62, visibleHeight - 160))) }
 
     var body: some View {
@@ -124,18 +128,20 @@ private struct CompactGame: View {
     }
 }
 
-/// Two panes for a landscape regular window (iPad, the unfolded Duo): the masthead and the rule
-/// on one side, the chain and its guess bar on the other; each scrolls itself.
+/// Two panes for a wide landscape regular window (iPad, the unfolded Duo): the masthead and the
+/// rule on the left, the chain and its guess bar on the right; each scrolls itself.
 private struct WideGame: View {
     let listMax: CGFloat
 
     var body: some View {
         #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
+            // The masthead reads first on the left page, the chain on the right page beside
+            // the hand that types.
             ArrangementView {
-                ChainPane(listMax: listMax)
-            } secondary: {
                 HeroPane()
+            } secondary: {
+                ChainPane(listMax: listMax)
             }
             .arrangementViewStyle(.split.axes(.horizontal))
         } else {

@@ -75,6 +75,23 @@ enum Fonts {
         return .system(size: scaled, weight: weight, design: family == .display ? .serif : .default)
     }
 
+    /// The `UIFont` that `font(...)` draws with (same face and Dynamic Type scaling), for measuring.
+    static func uiFont(family: Family, size: CGFloat, weight: Font.Weight, relativeTo style: Font.TextStyle) -> UIFont {
+        let scaled = UIFontMetrics(forTextStyle: style.uiKit).scaledValue(for: size)
+        if let name = postScriptName(family: family, weight: weight), let f = UIFont(name: name, size: scaled) {
+            return f
+        }
+        let base = UIFont.systemFont(ofSize: scaled, weight: weight.uiKit)
+        guard family == .display, let serif = base.fontDescriptor.withDesign(.serif) else { return base }
+        return UIFont(descriptor: serif, size: scaled)
+    }
+
+    /// The width of `text` set on one line.
+    static func width(of text: String, family: Family, size: CGFloat, weight: Font.Weight, relativeTo style: Font.TextStyle) -> CGFloat {
+        let font = uiFont(family: family, size: size, weight: weight, relativeTo: style)
+        return ceil((text as NSString).size(withAttributes: [.font: font]).width)
+    }
+
     private static func postScriptName(family: Family, weight: Font.Weight) -> String? {
         switch family {
         case .display:
@@ -91,6 +108,22 @@ enum Fonts {
             case .heavy, .black: return "LibreFranklin-ExtraBold"
             default: return "LibreFranklin-Regular"
             }
+        }
+    }
+}
+
+private extension Font.Weight {
+    var uiKit: UIFont.Weight {
+        switch self {
+        case .ultraLight: .ultraLight
+        case .thin: .thin
+        case .light: .light
+        case .medium: .medium
+        case .semibold: .semibold
+        case .bold: .bold
+        case .heavy: .heavy
+        case .black: .black
+        default: .regular
         }
     }
 }

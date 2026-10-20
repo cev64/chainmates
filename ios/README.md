@@ -29,14 +29,15 @@ core answers natively.
   `chainmates.nfl.stats`, `chainmates.mode`, `chainmates.theme`).
 - **The look** is the site's, from `web/app.css`: newsprint paper, ink, hairline rules, Zilla Slab
   and Libre Franklin, and the chalk-line green accent (`Design/Theme.swift`).
-  - Liquid Glass is only on the system's functional layer: the tab bar and sidebar, toolbars,
+  - Liquid Glass is only on the system's functional layer: the tab bar, toolbars,
     sheets, and the guess bar. It never goes on content (CLAUDE.md: no decorative glass).
 
 ## Layout: phones, iPads and the iPhone Duo
 
-One `TabView` (Today, Archive, Stats) with `.sidebarAdaptable`. It's a glass tab bar on compact
-widths and a sidebar on regular ones, and it's the same view tree in both, so folding or unfolding
-the Duo keeps your place. Layout follows size classes and the measured space only; nothing reads
+One `TabView` (Today, Archive, Stats) with `.tabBarOnly`: a glass tab bar along the bottom on
+iPhone and across the top on an iPad or the unfolded Duo, never a sidebar, so the game always gets
+the full width. It's the same view tree on every display, so folding or unfolding the Duo keeps your
+place. Layout follows size classes and the measured space only; nothing reads
 the device, its idiom or `UIScreen`.
 
 - **iPhone, the folded Duo's outer display, and narrow iPad windows** (compact width): one column,
@@ -44,8 +45,8 @@ the device, its idiom or `UIScreen`.
   the system draws the tab bar and toolbar as a vertical bar down the trailing edge, and Today asks
   it to keep its actions there (`toolbarVerticalCompressionBehavior(.prefersToolbarItems)`).
 - **iPad and the unfolded Duo** (regular width):
-  - The tabs become a sidebar.
-  - In landscape, Today splits into two panes with `ArrangementView` on iOS 27.1, so the panes
+  - The tabs sit across the top.
+  - In landscape with at least 860 points, Today splits into two panes with `ArrangementView` on iOS 27.1, so the panes
     line up with the Duo's fold; a single column is never centred on the fold.
   - In portrait (the Duo's laptop pose has the fold across the middle), the chain is on top and the
     guess bar is at the bottom.

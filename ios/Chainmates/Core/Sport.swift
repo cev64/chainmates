@@ -138,7 +138,8 @@ enum Format {
     static func years(_ p: CorePlayer) -> String {
         guard let first = p.first else { return "" }
         guard let last = p.last, last != first else { return String(first) }
-        return "\(first)\u{2013}\(last)"
+        // Word joiners keep "2009–2026" on one line.
+        return "\(first)\u{2060}\u{2013}\u{2060}\(last)"
     }
 
     /// "QB · 2011–2023"

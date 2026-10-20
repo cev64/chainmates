@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// The app's frame: one `TabView` (Today, Archive, Stats) that is a Liquid Glass tab bar on
-/// compact widths and a sidebar on regular ones (an iPad, the unfolded iPhone Duo). It's one view
-/// tree in both, so folding or unfolding the Duo keeps your place. Built with the iOS 27.1 SDK,
-/// the system moves the tab bar and toolbar into a vertical bar on the folded Duo by itself.
+/// The app's frame: one `TabView` (Today, Archive, Stats) as a Liquid Glass tab bar everywhere,
+/// never a sidebar. It sits along the bottom on iPhone and across the top on an iPad or the
+/// unfolded iPhone Duo, so the game always has the full width (on the unfolded Duo its two panes
+/// meet at the fold). It's one view tree on every display, so folding or unfolding the Duo keeps
+/// your place. Built with the iOS 27.1 SDK, the system moves the tab bar and toolbar into a
+/// vertical bar on the folded Duo by itself.
 struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.scenePhase) private var scenePhase
@@ -35,9 +37,8 @@ struct RootView: View {
                 }
             }
         }
-        .tabViewStyle(.sidebarAdaptable)
+        .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .modifier(SidebarByDefault())
         .tint(Theme.accent)
         .sensoryFeedback(.selection, trigger: app.route)
         .sheet(item: $app.sheet) { sheet in
@@ -193,21 +194,6 @@ private struct TaskOrientedBars: ViewModifier {
         #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
             content.toolbarVerticalCompressionBehavior(.prefersToolbarItems)
-        } else {
-            content
-        }
-        #else
-        content
-        #endif
-    }
-}
-
-/// Open in the sidebar on wide screens (iOS 27).
-private struct SidebarByDefault: ViewModifier {
-    func body(content: Content) -> some View {
-        #if compiler(>=6.4)
-        if #available(iOS 27.0, *) {
-            content.defaultTabBarPlacement(.sidebar)
         } else {
             content
         }

@@ -124,7 +124,9 @@ struct GameHero: View {
     @ViewBuilder private func matchup(_ pz: Puzzle) -> some View {
         let a = app.cachedPlayer(pz.start), b = app.cachedPlayer(pz.end)
         Group {
-            if typeSize.isAccessibilitySize {
+            // Stacked at accessibility text sizes, or when two cards side by side would be too
+            // narrow for a name (under ~145 points each).
+            if typeSize.isAccessibilitySize || (width > 0 && width < 330) {
                 VStack(alignment: .leading, spacing: 14) {
                     HeroCard(player: a, id: pz.start, label: "Start", trailing: false, nameSize: 27)
                     GapKnot(vertical: false)
@@ -157,20 +159,33 @@ private struct HeroCard: View {
     let trailing: Bool
     let nameSize: CGFloat
     @Environment(GameController.self) private var c
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var cardWidth: CGFloat = 0
+
+    /// The name's size, shrunk (to 60% at most) so its longest word fits the card: a name wraps
+    /// between words, never inside one ("Matthe/w").
+    private var fittedSize: CGFloat {
+        guard let name = player?.name, cardWidth > 0 else { return nameSize }
+        let longest = name.split(separator: " ").map {
+            Fonts.width(of: String($0), family: .display, size: nameSize, weight: .bold, relativeTo: .title)
+        }.max() ?? 0
+        guard longest > cardWidth else { return nameSize }
+        return max(nameSize * 0.6, (nameSize * cardWidth / longest * 0.97).rounded(.down))
+    }
 
     var body: some View {
-        VStack(alignment: trailing ? .trailing : .leading, spacing: 6) {
+        _ = typeSize // re-measure when the text size changes
+        return VStack(alignment: trailing ? .trailing : .leading, spacing: 6) {
             Text(label)
                 .font(Theme.body(12.5, .semibold, relativeTo: .caption))
                 .foregroundStyle(Theme.ink3)
             Text(player?.name ?? " ")
-                .font(Theme.display(nameSize, .bold, relativeTo: .title))
-                .tracking(-0.01 * nameSize)
+                .font(Theme.display(fittedSize, .bold, relativeTo: .title))
+                .tracking(-0.01 * fittedSize)
                 .lineSpacing(-2)
                 .foregroundStyle(Theme.ink)
                 .multilineTextAlignment(trailing ? .trailing : .leading)
                 .fixedSize(horizontal: false, vertical: true)
-                .minimumScaleFactor(0.8)
             if let p = player {
                 Text(Format.meta(p))
                     .font(Theme.body(13, relativeTo: .footnote))
@@ -182,6 +197,8 @@ private struct HeroCard: View {
                     .padding(.top, 2)
             }
         }
+        .frame(maxWidth: .infinity, alignment: trailing ? .trailing : .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { cardWidth = $0 }
         .accessibilityElement(children: .combine)
     }
 }
